@@ -38,8 +38,11 @@ dotProject is an open source project management system written in PHP. It origin
 3. **Initialize the database**
 
    ```bash
-   # Import the database schema
+   # Import the complete database schema (includes ACL data for admin login)
    docker exec -i db mysql -uroot -pA_1234567 dotproject < db/dotproject.sql
+
+   # Or use the convenience script:
+   bash db/import_db.sh
    ```
 
 4. **Configure the application**

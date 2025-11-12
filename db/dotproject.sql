@@ -1158,6 +1158,51 @@ INSERT INTO `%dbprefix%gacl_phpgacl` (name, value) VALUES ('schema_version', '2.
 INSERT INTO `%dbprefix%gacl_acl_sections` (id, value, order_value, name) VALUES (1, 'system', 1, 'System');
 INSERT INTO `%dbprefix%gacl_acl_sections` (id, value, order_value, name) VALUES (2, 'user', 2, 'User');
 
+#
+# Critical ACL data for admin user login
+# Without these INSERTs, admin login will fail even with correct password
+#
+
+# Create admin user in ACL system (ARO = Access Request Object)
+INSERT INTO `%dbprefix%gacl_aro` (id, section_value, value, order_value, name, hidden) 
+VALUES (1, 'user', '1', 1, 'Administrator', 0);
+
+# Create admin group
+INSERT INTO `%dbprefix%gacl_aro_groups` (id, parent_id, lft, rgt, name, value) 
+VALUES (1, 0, 1, 2, 'Administrator', 'admin');
+
+# CRITICAL: Map admin user to admin group (required for checkLogin() to work)
+INSERT INTO `%dbprefix%gacl_groups_aro_map` (group_id, aro_id) 
+VALUES (1, 1);
+
+# Create required ACL sections
+INSERT INTO `%dbprefix%gacl_aro_sections` (id, value, order_value, name, hidden)
+VALUES (1, 'user', 1, 'User', 0);
+
+INSERT INTO `%dbprefix%gacl_aco_sections` (id, value, order_value, name, hidden)
+VALUES (1, 'application', 1, 'Application', 0);
+
+INSERT INTO `%dbprefix%gacl_axo_sections` (id, value, order_value, name, hidden)
+VALUES 
+(1, 'sys', 1, 'System', 0),
+(2, 'app', 2, 'Application', 0);
+
+# Create basic operations (ACO)
+INSERT INTO `%dbprefix%gacl_aco` (id, section_value, value, order_value, name, hidden)
+VALUES 
+(1, 'application', 'access', 1, 'Access', 0),
+(2, 'application', 'view', 2, 'View', 0),
+(3, 'application', 'add', 3, 'Add', 0),
+(4, 'application', 'edit', 4, 'Edit', 0),
+(5, 'application', 'delete', 5, 'Delete', 0);
+
+# Create module groups (AXO groups)
+INSERT INTO `%dbprefix%gacl_axo_groups` (id, parent_id, lft, rgt, name, value)
+VALUES 
+(1, 0, 1, 2, 'All Modules', 'all'),
+(2, 0, 3, 4, 'System', 'sys'),
+(3, 0, 5, 6, 'Modules', 'mod');
+
 
 #
 # Table structure for table `sessions`
