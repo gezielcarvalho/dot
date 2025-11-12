@@ -18,25 +18,12 @@ This folder contains database setup and maintenance scripts for dotProject.
   - Replaces table prefix placeholders
   - Usage: `bash db/import_db.sh`
 
-### Legacy/Reference Scripts
-
-- **`install_database.sh`** - Legacy installer (no longer needed)
-
-  - Was created to add missing ACL data
-  - Now obsolete since dotproject.sql is fixed
-  - Kept for reference only
-
-- **`dotproject_acl_patch.sql`** - ACL patch (no longer needed)
-
-  - Was the patch applied to dotproject.sql
-  - Now integrated into the main SQL file
-  - Kept for documentation purposes
+### Diagnostic & Repair Scripts
 
 - **`fix_acl_mapping.sql`** - ACL repair for old installations
 
-  - Creates admin user in ACL system
-  - Maps admin user to admin group
-  - Populates required ACL tables
+  - Use if you have an old installation with missing ACL data
+  - Creates admin user in ACL system and mappings
   - Run if login fails with correct password
 
 - **`verify_login_requirements.sql`** - Comprehensive login diagnostic
@@ -50,8 +37,6 @@ This folder contains database setup and maintenance scripts for dotProject.
   - 7 essential checks
   - Fast diagnostic
   - Usage: Run in phpMyAdmin SQL tab
-
-### Diagnostic Scripts
 
 ## Upgrade Scripts
 
@@ -86,7 +71,7 @@ For detailed troubleshooting steps, see `../docs/LOGIN_DIAGNOSIS.md`
 
 ## Documentation
 
-- **`SQL_FILE_FIXES.md`** - Documents what was wrong with the original SQL file
-  - Historical reference
-  - Shows what was added to fix the login issue
-- **`ANALYSIS_ORIGINAL_SQL.md`** - Root cause analysis of the original bug
+- **`SQL_FILE_FIXED.md`** - Summary of the fix applied to dotproject.sql
+  - Shows what was added
+  - Explains why it was needed
+  - Verification steps
