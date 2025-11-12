@@ -1,14 +1,103 @@
-.docker
-.buildpath
-.settings
-.project
-.DS_Store
+# dotProject .gitignore
+
+# Environment Configuration
 includes/config.php
+.env
+.env.local
+.env.*.local
+
+# Docker volumes
+.docker/
+.docker
+
+# User-uploaded files
 files/*
 !files/index.html
 !files/temp/index.html
-lib/ezpdf/fonts/php_*
+!/modules/files/
+
+# Temporary files
+tmp/*
+tmp/*.log
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database dumps and backups
+*.sql.gz
+*.sql.bak
+backup_*.sql
+
+# IDE and Editor files
+.buildpath
+.settings
+.project
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
 /nbproject/private/
 /nbproject
 /dotProject/
-!/modules/files/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+Thumbs.db
+
+# PHP dependencies
+vendor/
+composer.lock
+*.phar
+
+# Node.js (for future modernization)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+dist/
+build/
+
+# Generated/compiled files
+lib/ezpdf/fonts/php_*
+*.min.js
+*.min.css
+*.map
+*.compiled
+
+# Cache
+cache/
+*.cache
+
+# Testing
+phpunit.xml
+.phpunit.result.cache
+coverage/
+.coverage
+
+# Session files
+sessions/
+
+# Backup files
+*~
+*.bak
+*.backup
+*.old
+
+# Security sensitive files
+*.key
+*.pem
+*.crt
+ssl/
+secrets/
