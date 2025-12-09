@@ -1,7 +1,6 @@
-version: '3.1'
+version: "3.1"
 
 services:
-
   dot:
     build: .
     container_name: dot
@@ -32,6 +31,16 @@ services:
       - 8088:80
     networks:
       - app
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: dot-mailhog
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    networks:
+      - app
+    restart: unless-stopped
 
 networks:
   app:

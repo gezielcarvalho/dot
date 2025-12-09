@@ -16,7 +16,6 @@ require_once($AppUI->getSystemClass('libmail'));
 //
 function sendNewPass() {
  global $AppUI;
-
  $_live_site = dPgetConfig('base_url');
  $_sitename = dPgetConfig('company_name');
 
@@ -25,13 +24,13 @@ function sendNewPass() {
  $checkusername = db_escape($checkusername);
  $confirmEmail = trim(dPgetParam($_POST, 'checkemail', ''));
  $confirmEmail = mb_strtolower(db_escape($confirmEmail));
-
+ 
  $q = new DBQuery;
  $q->addTable('users', 'u');
  $q->addQuery('u.user_id');
  $q->addWhere('user_username=\''.$checkusername.'\' AND LOWER(contact_email)=\''.$confirmEmail.'\'');
  $q->leftJoin('contacts', 'c', 'u.user_contact = c.contact_id');
- if (!($user_id = $q->loadResult()) || !$checkusername || !$confirmEmail) {
+  if (!($user_id = $q->loadResult()) || !$checkusername || !$confirmEmail) {
   $AppUI->setMsg('Invalid username or email.', UI_MSG_ERROR);
   $AppUI->redirect();
  }
@@ -43,13 +42,20 @@ function sendNewPass() {
    . $AppUI->_('sendpass3', UI_OUTPUT_RAW);
  $subject = "$_sitename :: ".$AppUI->_('sendpass4', UI_OUTPUT_RAW)." - $checkusername";
  
+ // prepare and send the mail
+
  $m= new Mail; // create the mail
  $m->From("dotProject@" . dPgetConfig('site_domain'));
  $m->To($confirmEmail);
  $m->Subject($subject);
- $m->Body($message, isset($GLOBALS['locale_char_set']) ? $GLOBALS['locale_char_set'] : "");	// set the body
- $m->Send();	// send the mail
+ $m->Body($message, isset($GLOBALS['locale_char_set']) ? $GLOBALS['locale_char_set'] : ""); // set the body
 
+ if ($m->Send()) {
+     $AppUI->setMsg('Email sent successfully.', UI_MSG_OK);
+ } else {
+     $AppUI->setMsg('Failed to send email.', UI_MSG_ERROR);
+ }
+ 
  $newpass = md5($newpass);
  $q->clear();
  $q->addTable('users');
