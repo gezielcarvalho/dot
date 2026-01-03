@@ -25,10 +25,13 @@ class CMonthCalendar {
 	var $next_month;
 	var $prev_year;
 	var $next_year;
+	var $classes = array();
 	/**#@-*/
 	
 	/** @var string The css style name of the Title */
 	var $styleTitle;
+	/** @var boolean Show the title heading */
+	var $showTitle;
 	
 	/** @var string The css style name of the main calendar */
 	var $styleMain;
@@ -62,6 +65,12 @@ class CMonthCalendar {
 	
 	/** @var boolean Show highlighting in the calendar boxes */
 	var $showHighlightedDays;
+	
+	/** @var array Events keyed by YYYYMMDD */
+	var $events;
+	
+	/** @var array Highlighted days keyed by YYYYMMDD */
+	var $highlightedDays;
 
 	/**
 	 * @param Date $date
@@ -504,7 +513,7 @@ class CEvent extends CDpObject {
 			$q->setDelete('user_events');
 			$q->addWhere('event_id = '. $this->event_id);
 			$deleted = ((!$q->exec())? $AppUI->_('Could not delete Event-User relationship').'. '.db_error():null);
-			$q->clear;
+			$q->clear();
 		}
 		
 		return $deleted;
