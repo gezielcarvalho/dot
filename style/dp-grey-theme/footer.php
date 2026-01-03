@@ -1,5 +1,5 @@
 <?php
-	echo $AppUI->getMsg();
+	echo $AppUI ? $AppUI->getMsg() : '';
 ?>
 	</td>
 </tr>

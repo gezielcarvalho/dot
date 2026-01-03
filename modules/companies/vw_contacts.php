@@ -20,7 +20,7 @@ $q->addOrder('contact_last_name');
 
 $s = '';
 if (!($rows = $q->loadList())) {
-	echo $AppUI->_('No data available') . '<br />' . $AppUI->getMsg();
+	echo ($AppUI ? ($AppUI->_('No data available') . '<br />' . $AppUI->getMsg()) : 'No data available');
 } else {
 ?>
 <table width="100%" border="0" cellpadding="2" cellspacing="1" class="tbl" summary="view company contacts">

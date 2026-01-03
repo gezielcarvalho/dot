@@ -50,7 +50,7 @@ $mm = $this_day->getMonth();
 $yy = $this_day->getYear();
 
 // get current week
-$this_week = Date_calc::beginOfWeek ($dd, $mm, $yy, FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY);
+$this_week = Date_Calc::beginOfWeek ($dd, $mm, $yy, FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY);
 
 // prepare time period for 'events'
 $first_time = php4_clone($this_day);

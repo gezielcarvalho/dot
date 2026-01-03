@@ -60,6 +60,11 @@ function get_time_ago ($timestamp) {
 	global $AppUI;
 	/** @var CAppUI $AppUI */
 
+	// Add null check for $AppUI
+	if (!isset($AppUI) || !$AppUI) {
+		return 'Unknown time';
+	}
+
     $elapsed_seconds = time() - $timestamp;
 
     if ($elapsed_seconds < 60) { // seconds ago
@@ -245,6 +250,11 @@ function format_field ($value, $type, $ticket = NULL) {
     global $AppUI;
     /** @var CAppUI $AppUI */
     global $canEdit;
+
+    // Add null check for $AppUI
+    if (!isset($AppUI) || !$AppUI) {
+        return $value; // Return raw value if AppUI is not available
+    }
 
     $output = ""; // Initialize output variable
 

@@ -28,7 +28,7 @@ $q->addOrder('project_name');
 
 $s = '';
 if (!($rows = $q->loadList())) {
-	$s .= '<tr><td>' . $AppUI->_('No data available') . '<br />' . $AppUI->getMsg() . '</td></tr>';
+	$s .= '<tr><td>' . ($AppUI ? ($AppUI->_('No data available') . '<br />' . $AppUI->getMsg()) : 'No data available') . '</td></tr>';
 } else {
 	$s .= '<tr><th>' . $AppUI->_('Name') . '</th><th>' . $AppUI->_('Owner') . '</th></tr>';
 	

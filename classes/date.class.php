@@ -7,8 +7,16 @@ if (!defined('DP_BASE_DIR')) {
 	die('You should not access this file directly.');
 }
 
+if (!defined('LOCALE_FIRST_DAY')) {
+	define('LOCALE_FIRST_DAY', 1);
+}
 define('DATE_CALC_BEGIN_WEEKDAY', LOCALE_FIRST_DAY);
-require_once $AppUI->getLibraryClass('PEAR/Date');
+
+// Load PEAR Date class only if AppUI is available
+global $AppUI;
+if ($AppUI) {
+	require_once $AppUI->getLibraryClass('PEAR/Date');
+}
 
 define('FMT_DATEISO', '%Y%m%dT%H%M%S');
 define('FMT_DATELDAP', '%Y%m%d%H%M%SZ');
@@ -57,6 +65,9 @@ class CDate extends Date {
 */
 	function format($format) {
 		global $AppUI;
+		if (!$AppUI) {
+			return parent::format($format); // AppUI not available, return unlocalized format
+		}
 		$AppUI->setBaseLocale();
 		$output = parent::format($format);
 		setlocale(LC_ALL, $AppUI->user_lang);
@@ -172,6 +183,9 @@ class CDate extends Date {
 	
 	function isWorkingDay() {
 		global $AppUI;
+		if (!$AppUI) {
+			return true; // AppUI not available, assume all days are working days
+		}
 		
 		$working_days = dPgetConfig("cal_working_days");
 		$working_days = ((is_null($working_days)) ? array('1','2','3','4','5') : explode(",", $working_days));
@@ -187,6 +201,9 @@ class CDate extends Date {
 	 */ 
 	function next_working_day($preserveHours = false) {
 		global $AppUI;
+		if (!$AppUI) {
+			return $this; // AppUI not available, return current date
+		}
 		$do = $this;
 		$end = intval(dPgetConfig('cal_day_end'));
 		$start = intval(dPgetConfig('cal_day_start'));
@@ -209,6 +226,9 @@ class CDate extends Date {
 	 */ 
 	function prev_working_day($preserveHours = false) {
 		global $AppUI;
+		if (!$AppUI) {
+			return $this; // AppUI not available, return current date
+		}
 		$do = $this;
 		$end = intval(dPgetConfig('cal_day_end'));
 		$start = intval(dPgetConfig('cal_day_start'));
@@ -385,6 +405,9 @@ class CDate extends Date {
 	
 	function workingDaysInSpan($e) {
 		global $AppUI;
+		if (!$AppUI) {
+			return 0; // AppUI not available, return 0 working days
+		}
 		
 		// assume start is before end and set a default signum for the duration	
 		$sgn = 1;

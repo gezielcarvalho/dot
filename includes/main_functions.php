@@ -48,6 +48,9 @@ function bestColor($bg, $lt='#ffffff', $dk='#000000') {
 function arraySelect(&$arr, $select_name, $select_attribs, $selected, $translate=false) {
 	GLOBAL $AppUI;
 	/** @var CAppUI $AppUI */
+	if (!$AppUI) {
+		return ''; // AppUI not available
+	}
 	if (! is_array($arr)) {
 		dprint(__FILE__, __LINE__, 0, 'arraySelect called with no array');
 		return '';
@@ -175,6 +178,9 @@ function arrayMerge($a1, $a2) {
 function breadCrumbs(&$arr) {
 	GLOBAL $AppUI;
 	/** @var CAppUI $AppUI */
+	if (!$AppUI) {
+		return ''; // AppUI not available
+	}
 	$crumbs = array();
 	foreach ($arr as $k => $v) {
 		$crumbs[] = '<a href="' . $AppUI->___($k) . '">' . $AppUI->_($v) . '</a>';
@@ -188,6 +194,9 @@ function breadCrumbs(&$arr) {
 function dPcontextHelp($title, $link='') {
 	global $AppUI;
 	/** @var CAppUI $AppUI */
+	if (!$AppUI) {
+		return ''; // AppUI not available
+	}
 	return ('<a href="#' . $AppUI->___($link) . '" onClick="' 
 	        . "javascript:window.open('?m=help&dialog=1&hid=$link', 'contexthelp', " 
 	        . "'width=400, height=400, left=50, top=50, scrollbars=yes, resizable=yes')" . '">' 
@@ -229,6 +238,9 @@ function dPgetUsernameFromID($user) {
 function dPgetUsers() {
 	global $AppUI;
 	/** @var CAppUI $AppUI */
+	if (!$AppUI) {
+		return array(0 => 'All Users'); // AppUI not available
+	}
 	$q = new DBQuery;
 	$q->addTable('users');
 	$q->addQuery('user_id, concat_ws(" ", contact_first_name, contact_last_name) as name');
@@ -242,6 +254,9 @@ function dPgetUsers() {
 function dPshowModuleConfig($config) {
 	GLOBAL $AppUI;
 	/** @var CAppUI $AppUI */
+	if (!$AppUI) {
+		return '<p>Module configuration not available</p>'; // AppUI not available
+	}
 	$s = '<table cellspacing="2" cellpadding="2" border="0" class="std" width="50%">';
 	$s .= '<tr><th colspan="2">'.$AppUI->_('Module Configuration').'</th></tr>';
 	foreach ($config as $k => $v) {
@@ -287,6 +302,10 @@ function dPshowImage($src, $wid='', $hgt='', $alt='', $title='') {
 	global $AppUI;
 	/** @var CAppUI $AppUI */
 	
+	if (!$AppUI) {
+		return ''; // AppUI not available
+	}
+	
 	if ($src == '') {
 		return '';
 	}
@@ -309,21 +328,21 @@ function defVal($var, $def) {
 * Utility function to return a value from a named array or a specified default
 */
 function dPgetParam(&$arr, $name, $def=null) {
-	return defVal($arr[$name], $def);
+	return isset($arr[$name]) ? $arr[$name] : $def;
 }
 
 /**
  * Alternative to protect from XSS attacks.
  */
 function dPgetCleanParam(&$arr, $name, $def=null) {
-	if (is_array($arr[$name])) {
+	if (isset($arr[$name]) && is_array($arr[$name])) {
 	  $val = array();
 	  foreach (array_keys($arr[$name]) as $key) {
 	     $val[$key] = dPgetCleanParam($arr[$name], $key, $def);
 	  }
 	  return $val;
 	}
-	$val = defVal($arr[$name], $def);
+	$val = isset($arr[$name]) ? $arr[$name] : $def;
 	if (empty($val)) {
 		return $val;
 	}
@@ -335,7 +354,7 @@ function dPsanitiseHTML($text) {
 }
 
 function dPgetEmailParam($arr, $name, $def = null) {
-  $val = defVal($arr[$name], $def);
+  $val = isset($arr[$name]) ? $arr[$name] : $def;
   preg_match('/(([\w\s]+)?<)?(\w+)@([\w\d\.]+)>?/', $val, $matched);
   $result = filter_xss($matched[3]) . '@' . filter_xss($matched[4]);
   if ($matched[2]) {
@@ -441,6 +460,9 @@ function dPgetSysVal($title) {
 function dPuserHasRole($name) {
 	global $AppUI;
 	/** @var CAppUI $AppUI */
+	if (!$AppUI) {
+		return false; // AppUI not available
+	}
 	$uid = (int)$AppUI->user_id;
 	
 	$q	= new DBQuery;
@@ -459,6 +481,9 @@ function dPuserHasRole($name) {
 function dPformatDuration($x) {
 	global $AppUI;
 	/** @var CAppUI $AppUI */
+	if (!$AppUI) {
+		return 'n/a'; // AppUI not available
+	}
 	
 	$dur_day = floor($x / dPgetConfig('daily_working_hours'));
 	$dur_hour = ($x % dPgetConfig('daily_working_hours'));

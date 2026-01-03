@@ -28,7 +28,7 @@ $titleBlock->show();
 
 if (is_dir(DP_BASE_DIR.'/install')) {
 	$AppUI->setMsg('You have not removed your install directory, this is a major security risk!', UI_MSG_ALERT);
-	echo '<div class="error">' . $AppUI->getMsg() . '</div>'."\n";
+	echo '<div class="error">' . ($AppUI ? $AppUI->getMsg() : '') . '</div>'."\n";
 }
 
 echo $AppUI->_('syscfg_intro');

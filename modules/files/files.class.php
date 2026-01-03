@@ -3,16 +3,8 @@ if (!defined('DP_BASE_DIR')) {
 	die('You should not access this file directly.');
 }
 
-require_once $AppUI->getSystemClass('libmail');
-require_once $AppUI->getSystemClass('dp');
-require_once $AppUI->getSystemClass('date');
-require_once $AppUI->getModuleClass('tasks');
-require_once $AppUI->getModuleClass('projects');
+// Note: Required classes are now loaded in the constructor with null checks
 global $helpdesk_available;
-
-if ($helpdesk_available = $AppUI->isActiveModule('helpdesk')) {
-	include_once $AppUI->getModuleClass('helpdesk');
-}
 
 // Stub class definition for CHelpDeskItem when helpdesk module is not available
 if (!class_exists('CHelpDeskItem')) {
@@ -81,6 +73,20 @@ class CFile extends CDpObject {
 	
 	function __construct() {
 		global $AppUI, $helpdesk_available;
+		
+		// Load required classes only if AppUI is available
+		if ($AppUI) {
+			require_once $AppUI->getSystemClass('libmail');
+			require_once $AppUI->getSystemClass('dp');
+			require_once $AppUI->getSystemClass('date');
+			require_once $AppUI->getModuleClass('tasks');
+			require_once $AppUI->getModuleClass('projects');
+			
+			if ($helpdesk_available = $AppUI->isActiveModule('helpdesk')) {
+				include_once $AppUI->getModuleClass('helpdesk');
+			}
+		}
+		
 		if ($helpdesk_available) {
 			$this->file_helpdesk_item = NULL;
 		}
@@ -98,6 +104,10 @@ class CFile extends CDpObject {
 	function addHelpDeskTaskLog() {
 		global $AppUI, $helpdesk_available, $helpdesk_task_log, $helpdesk_file_id;
 		if ($helpdesk_available && $this->file_helpdesk_item != 0) {
+			
+			if (!$AppUI) {
+				return; // AppUI not available
+			}
 			
 			// create task log with information about the file that was uploaded
 			$task_log = new CHDTaskLog();
@@ -122,6 +132,10 @@ class CFile extends CDpObject {
 	
 	function canAdmin() {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			return false; // AppUI not available
+		}
 		
 		if (! $this->file_project) {
 			return false;
@@ -157,6 +171,9 @@ class CFile extends CDpObject {
 	
 	function checkout($userId, $coReason) {
 		global $AppUI;
+		if (!$AppUI) {
+			return 'File ID error'; // AppUI not available
+		}
 		if (! $this->file_id) {
 			return $AppUI->_('fileIdError', UI_OUTPUT_RAW);
 		}
@@ -208,6 +225,9 @@ class CFile extends CDpObject {
 	// move the file if the affiliated project was changed
 	function moveFile($oldProj, $realname) {
 		global $AppUI, $dPconfig;
+		if (!$AppUI) {
+			return false; // AppUI not available
+		}
 		if (!is_dir(DP_BASE_DIR . '/files/' . $this->file_project)) {
 			$res = mkdir(DP_BASE_DIR . '/files/' . $this->file_project, 0777);
 			if (!$res) {
@@ -225,6 +245,9 @@ class CFile extends CDpObject {
 	// duplicate a file into root
 	function duplicateFile($oldProj, $realname) {
 		global $AppUI, $dPconfig;
+		if (!$AppUI) {
+			return false; // AppUI not available
+		}
 		if (!is_dir(DP_BASE_DIR.'/files/0')) {
 			$res = mkdir(DP_BASE_DIR.'/files/0', 0777);
 			if (!$res) {
@@ -243,6 +266,9 @@ class CFile extends CDpObject {
 	// move a file from a temporary (uploaded) location to the file system
 	function moveTemp($upload) {
 		global $AppUI, $dPconfig;
+		if (!$AppUI) {
+			return false; // AppUI not available
+		}
 		// check that directories are created
 		if (!is_dir(DP_BASE_DIR.'/files')) {
 			$res = mkdir(DP_BASE_DIR.'/files', 0777);
@@ -269,6 +295,9 @@ class CFile extends CDpObject {
 	// parse file for indexing
 	function indexStrings() {
 		GLOBAL $AppUI, $dPconfig;
+		if (!$AppUI) {
+			return false; // AppUI not available
+		}
 		// get the parser application
 		$parser = @$dPconfig['parser_' . $this->file_type];
 		if (!$parser) {
@@ -277,7 +306,6 @@ class CFile extends CDpObject {
 		if (!$parser) {
 			return false;
 		}
-		// buffer the file
 		$filepath = (DP_BASE_DIR . '/files/' . $this->file_project . '/' 
 		                    . $this->file_real_filename);
 		$fp = fopen($filepath, 'rb');
@@ -336,6 +364,10 @@ class CFile extends CDpObject {
 	//function notifies about file changing
 	function notify() {	
 		global $AppUI, $dPconfig, $locale_char_set, $helpdesk_available, $helpdesk_task_log, $HELPDESK_CONFIG;
+		
+		if (!$AppUI) {
+			return; // AppUI not available
+		}
 		
 		// if helpdesk_item is available send notification to assigned users
 		if ($helpdesk_available && $this->file_helpdesk_item != 0) {
@@ -451,6 +483,9 @@ class CFile extends CDpObject {
 	
 	function notifyContacts() {
 		GLOBAL $AppUI, $dPconfig, $locale_char_set;
+		if (!$AppUI) {
+			return ''; // AppUI not available
+		}
 		//if no project specified than we will not do anything
 		if ($this->file_project != 0) {
 			$project = new CProject();
@@ -607,6 +642,11 @@ class CFileFolder extends CDpObject {
 	
 	function canDelete(&$msg, $oid=null, $joins=null) {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			$msg = 'Application not initialized';
+			return false;
+		}
 		
 		$oid = intval(($oid ? $oid : $this->file_folder_id));
 		

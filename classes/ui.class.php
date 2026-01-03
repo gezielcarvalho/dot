@@ -258,6 +258,10 @@ class CAppUI {
 	function checkFileName($file) {
 		global $AppUI;
 		
+		if (!$AppUI) {
+			return $file; // AppUI not available, return file as-is
+		}
+		
 		// define bad characters and their replacement
 		$bad_chars = ';/\\\'()"$';
 		$bad_replace = '.........'; // Needs the same number of chars as $bad_chars
@@ -318,7 +322,11 @@ class CAppUI {
 			}
 			$lang = $LANGUAGES[$loc];
 		}
-		list($base_locale, $english_string, $native_string, $default_language, $lcs) = $lang;
+		if (isset($lang) && is_array($lang) && count($lang) >= 5) {
+			list($base_locale, $english_string, $native_string, $default_language, $lcs) = $lang;
+		} else {
+			$base_locale = $english_string = $native_string = $default_language = $lcs = '';
+		}
 		if (! isset($lcs)) {
 			$lcs = (isset($locale_char_set)) ? $locale_char_set : 'utf-8';
 		}
@@ -380,7 +388,8 @@ class CAppUI {
 		
 		$LANGUAGES = $this->loadLanguages();
 
-		list($locale, $en_name, $local_name, $win_locale, $lcs) = $LANGUAGES['en_AU'];
+		$locale_data = $LANGUAGES['en_AU'];
+		list($locale, $en_name, $local_name, $win_locale, $lcs) = array_pad($locale_data, 5, null);
 		$real_locale = 'en_AU';
 		if (strtoupper(substr(PHP_OS,0,3)) == 'WIN') {
 			$real_locale = $win_locale;
@@ -660,6 +669,9 @@ class CAppUI {
 * @param mixed Value to assign to the label/key
 */
 	function setState($label, $value = null) {
+		if (!is_array($this->state)) {
+			$this->state = array();
+		}
 		if (isset($value)) {
 			$this->state[$label] = $value;
 		}
@@ -670,6 +682,9 @@ class CAppUI {
 * @return mixed
 */
 	function getState($label, $default_value = null) {
+		if (!is_array($this->state)) {
+			$this->state = array();
+		}
 		if (array_key_exists($label, $this->state)) {
 			return $this->state[$label];
 		} else if (isset($default_value)) {
@@ -1117,6 +1132,9 @@ class CTabBox_core {
 	
 	function isTabbed() {
 		global $AppUI;
+		if (!$AppUI) {
+			return false; // AppUI not available
+		}
 		return (($this->active < 0 || @$AppUI->getPref('TABVIEW') == 2) ? false : true);
 	}
 	
@@ -1127,6 +1145,11 @@ class CTabBox_core {
 	 */
 	function show($extra='', $js_tabs = false) {
 		GLOBAL $AppUI, $currentTabId, $currentTabName;
+		
+		if (!$AppUI) {
+			return; // AppUI not available
+		}
+		
 		reset($this->tabs);
 		$s = '';
 		// tabbed / flat view options
@@ -1214,6 +1237,11 @@ class CTabBox_core {
 	
 	function loadExtras($module, $file = null) {
 		global $AppUI, $acl;
+		
+		if (!$AppUI) {
+			return false; // AppUI not available
+		}
+		
 		if (! (isset($_SESSION['all_tabs']) && isset($_SESSION['all_tabs'][$module]))) {
 			return false;
 		}
@@ -1338,6 +1366,11 @@ class CTitleBlock_core {
 	 */
 	function addCrumbDelete($title, $canDelete='', $msg='') {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			return; // AppUI not available
+		}
+		
 		$this->addCrumbRight('<table cellspacing="0" cellpadding="0" border="0"><tr><td>'
 		                     . '<a href="javascript:delIt()" title="' 
 		                     . $AppUI->_($canDelete ? '' : $msg).'">'
@@ -1354,6 +1387,11 @@ class CTitleBlock_core {
 	 */
 	function show() {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			return; // AppUI not available
+		}
+		
 		$CR = "\n";
 		$CT = "\n\t";
 		$s = "\n" . '<table width="100%" border="0" cellpadding="1" cellspacing="1">';
@@ -1393,7 +1431,7 @@ class CTitleBlock_core {
 		$s .= "\n</tr>";
 		$s .= "\n</table>";
 
-		if (count($this->crumbs) || count($this->cells2)) {
+		if (count($this->crumbs) || (is_array($this->cells2) && count($this->cells2))) {
 			$crumbs = array();
 			foreach ($this->crumbs as $k => $v) {
 				$t = (($v[1]) ? ('<img src="' . dPfindImage($v[1], $this->module) 
@@ -1407,7 +1445,7 @@ class CTitleBlock_core {
 			$s .= "\n\t\t" . '<strong>' . implode(' : ', $crumbs) . '</strong>';
 			$s .= "\n\t" . '</td>';
 			
-			foreach ($this->cells2 as $c) {
+			foreach ((array)$this->cells2 as $c) {
 				$s .= $c[2] ? "\n$c[2]" : '';
 				$s .= "\n\t" . '<td align="right" nowrap="nowrap"' . ($c[0] ? " $c[0]" : '') . '>';
 				$s .= $c[1] ? "\n\t$c[1]" : '&nbsp;';

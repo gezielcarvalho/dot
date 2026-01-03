@@ -12,6 +12,9 @@ class CTitleBlock extends CTitleBlock_core {
 class CTabBox extends CTabBox_core {
 	function show($extra='', $js_tabs = false) {
 		GLOBAL $AppUI, $dPconfig, $currentTabId, $currentTabName;
+		if (!$AppUI) {
+			return; // AppUI not available
+		}
 		$uistyle = ($AppUI->getPref('UISTYLE') 
 		            ? $AppUI->getPref('UISTYLE') 
 		            : (($dPconfig['host_style']) ? $dPconfig['host_style'] : 'default'));
@@ -88,7 +91,7 @@ class CTabBox extends CTabBox_core {
 			$s .= '<tr><td width="100%" colspan="'.(count($this->tabs)*4 + 1).'" class="tabox">' . "\n";
 			echo $s;
 			//Will be null if the previous selection tab is not available in the new window eg. Children tasks
-			if ($this->tabs[$this->active][0] != "") {
+			if (isset($this->tabs[$this->active]) && $this->tabs[$this->active][0] != "") {
 				$currentTabId = $this->active;
 				$currentTabName = $this->tabs[$this->active][1];
 				if (!$js_tabs)

@@ -12,6 +12,12 @@ class CTitleBlock extends CTitleBlock_core {
 class CTabBox extends CTabBox_core {
 	function show($extra='', $js_tabs = false) {
 		GLOBAL $AppUI, $dPconfig, $currentTabId, $currentTabName;
+		
+		// Add null check for $AppUI
+		if (!isset($AppUI) || !$AppUI) {
+			return; // Cannot render tabs without AppUI
+		}
+		
 		$uistyle = $AppUI->getPref('UISTYLE') ? $AppUI->getPref('UISTYLE') : $dPconfig['host_style'];
 		if (! $uistyle) {
 			$uistyle = 'default';

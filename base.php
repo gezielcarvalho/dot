@@ -59,7 +59,7 @@ function safe_get_env($name)
 
 // automatically define the base url
 $baseUrl = (((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') 
-             || $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https') 
+             || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https')) 
              ? 'https://' : 'http://');
 $baseUrl .= safe_get_env('HTTP_HOST');
 // check if webserver is not running on default port                

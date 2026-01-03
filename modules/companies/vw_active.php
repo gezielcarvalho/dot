@@ -35,7 +35,7 @@ $q->addOrder($sort);
 $s = '';
 
 if (!($rows = $q->loadList())) {
-	$s .= '<tr><td>'.$AppUI->_('No data available').'<br />'.$AppUI->getMsg().'</td></tr>';
+	$s .= '<tr><td>'.($AppUI ? ($AppUI->_('No data available').'<br />'.$AppUI->getMsg()) : 'No data available').'</td></tr>';
 } else {
 	$s .= '<tr>';
 	$s .= '<th><a style="color:white" href="?m=companies&amp;a=view&amp;company_id='.$company_id.'&amp;sort=project_priority">'
