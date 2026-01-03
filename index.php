@@ -101,9 +101,30 @@ if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
 // CSRF protection for POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = dPgetParam($_POST, 'csrf_token', '');
-    if (!validateCSRFToken($token)) {
-        die('CSRF token validation failed.');
-    }
+	// Allow login or lostpass POSTs to proceed if no session token exists yet.
+	$allow_without_session = false;
+	if (!isset($_SESSION['csrf_token']) && (isset($_POST['login']) || isset($_POST['lostpass']))) {
+		$allow_without_session = true;
+		if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
+			@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode(array('time'=>date('c'),'event'=>'csrf_bypass_for_login_or_lostpass','session_id'=>session_id(),'post_keys'=>array_keys($_POST))) . "\n", FILE_APPEND);
+		}
+	}
+	if (!$allow_without_session && !validateCSRFToken($token)) {
+		// Log details to help diagnose missing/mismatched CSRF tokens
+		if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
+			$dbg = array(
+				'time' => date('c'),
+				'event' => 'csrf_failed',
+				'post_token' => $token,
+				'session_token' => isset($_SESSION['csrf_token']) ? $_SESSION['csrf_token'] : null,
+				'session_id' => session_id(),
+				'cookies' => $_COOKIE,
+				'post_keys' => array_keys($_POST),
+			);
+			@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode($dbg) . "\n", FILE_APPEND);
+		}
+		die('CSRF token validation failed.');
+	}
 }
 
 // write the HTML headers

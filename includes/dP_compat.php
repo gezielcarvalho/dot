@@ -92,4 +92,11 @@ if (!function_exists('mb_substr')) {
 		return (($length == "undefined") ? substr($str, $start) : substr($str, $start, $length));
 	}
 }
+
+// Provide compatibility for removed magic quotes function
+if (!function_exists('get_magic_quotes_gpc')) {
+	function get_magic_quotes_gpc() {
+		return false;
+	}
+}
 ?>

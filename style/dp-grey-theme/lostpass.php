@@ -25,6 +25,7 @@ if (!isset($AppUI) || !$AppUI) {
 <table align="center" border="0" width="250" cellpadding="6" cellspacing="0" class="std">
 <input type="hidden" name="lostpass" value="1" />
 <input type="hidden" name="redirect" value="<?php echo $redirect;?>" />
+<input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>" />
 <tr>
 	<th colspan="2"><em><?php echo $dPconfig['company_name'];?></em></th>
 </tr>

@@ -25,6 +25,7 @@ if (!defined('DP_BASE_DIR')) {
 <input type="hidden" name="login" value="<?php echo time();?>" />
 <input type="hidden" name="lostpass" value="0" />
 <input type="hidden" name="redirect" value="<?php echo $redirect;?>" />
+<input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>" />
 <tr>
 	<th colspan="2"><em><?php echo dPgetConfig('company_name');?></em></th>
 </tr>
