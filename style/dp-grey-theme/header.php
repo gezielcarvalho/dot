@@ -12,9 +12,9 @@ if (!$AppUI) {
 } else {
 	$page_title = (($dialog) ? '' 
 	               : (($dPconfig['page_title'] == 'dotProject') 
-	                  ? ($dPconfig['page_title'] . ' ' . $AppUI->getVersion()) 
+	                  ? ($dPconfig['page_title'] . ' ' . ($AppUI ? $AppUI->getVersion() : '1.0')) 
 					  : $dPconfig['page_title']));
-	$uistyle = ($AppUI->getPref('UISTYLE') 
+	$uistyle = ($AppUI && $AppUI->getPref('UISTYLE') 
 	            ? $AppUI->getPref('UISTYLE') 
 	            : (($dPconfig['host_style']) ? $dPconfig['host_style'] : 'default'));
 }

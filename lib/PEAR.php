@@ -212,7 +212,7 @@ class PEAR
     * @return mixed   A reference to the variable. If not set it will be
     *                 auto initialised to NULL.
     */
-    function &getStaticProperty($class, $var)
+    static function &getStaticProperty($class, $var)
     {
         static $properties;
         if (!isset($properties[$class])) {
@@ -238,7 +238,7 @@ class PEAR
     * @param  mixed $args  The arguments to pass to the function
     * @return void
     */
-    function registerShutdownFunc($func, $args = array())
+    static function registerShutdownFunc($func, $args = array())
     {
         // if we are called statically, there is a potential
         // that no shutdown func is registered.  Bug #6445
@@ -263,7 +263,7 @@ class PEAR
      * @access  public
      * @return  bool    true if parameter is an error
      */
-    function isError($data, $code = null)
+    static function isError($data, $code = null)
     {
         if (!is_a($data, 'PEAR_Error')) {
             return false;
@@ -508,7 +508,7 @@ class PEAR
      * @see PEAR::setErrorHandling
      * @since PHP 4.0.5
      */
-    function &raiseError($message = null,
+    static function &raiseError($message = null,
                          $code = null,
                          $mode = null,
                          $options = null,
@@ -525,22 +525,11 @@ class PEAR
             $message     = $message->getMessage();
         }
 
-        if (isset($this) && isset($this->_expected_errors) && sizeof($this->_expected_errors) > 0 && sizeof($exp = end($this->_expected_errors))) {
-            if ($exp[0] == "*" ||
-                (is_int(reset($exp)) && in_array($code, $exp)) ||
-                (is_string(reset($exp)) && in_array($message, $exp))) {
-                $mode = PEAR_ERROR_RETURN;
-            }
-        }
+        // No expected errors check for static calls
 
         // No mode given, try global ones
         if ($mode === null) {
-            // Class error handler
-            if (isset($this) && isset($this->_default_error_mode)) {
-                $mode    = $this->_default_error_mode;
-                $options = $this->_default_error_options;
-            // Global error handler
-            } elseif (isset($GLOBALS['_PEAR_default_error_mode'])) {
+            if (isset($GLOBALS['_PEAR_default_error_mode'])) {
                 $mode    = $GLOBALS['_PEAR_default_error_mode'];
                 $options = $GLOBALS['_PEAR_default_error_options'];
             }
@@ -548,8 +537,6 @@ class PEAR
 
         if ($error_class !== null) {
             $ec = $error_class;
-        } elseif (isset($this) && isset($this->_error_class)) {
-            $ec = $this->_error_class;
         } else {
             $ec = 'PEAR_Error';
         }
@@ -785,7 +772,7 @@ function _PEAR_call_destructors()
             $_PEAR_destructor_object_list = array_reverse($_PEAR_destructor_object_list);
         }
 
-        while (list($k, $objref) = each($_PEAR_destructor_object_list)) {
+        foreach ($_PEAR_destructor_object_list as $k => $objref) {
             $classname = get_class($objref);
             while ($classname) {
                 $destructor = "_$classname";
@@ -839,6 +826,7 @@ class PEAR_Error
     var $message              = '';
     var $userinfo             = '';
     var $backtrace            = null;
+    var $callback             = null;
 
     // }}}
     // {{{ constructor

@@ -138,7 +138,7 @@ class DBQuery {
 	 * then pushes the new data onto the end of the array.
 	 */
 	function addClause($clause, $value, $check_array = true) {
-		dprint(__FILE__, __LINE__, 8, "Adding '$value' to $clause clause");
+		dprint(__FILE__, __LINE__, 8, "Adding '" . (is_array($value) ? 'array' : $value) . "' to $clause clause");
 		if (!isset($this->$clause)) {
 			$this->$clause = array();
 		}
@@ -532,7 +532,8 @@ class DBQuery {
 			if (is_array($this->table_list)) {
 				reset($this->table_list);
 				// Grab the first record
-				list($key, $table) = each ($this->table_list);
+				$table = current($this->table_list);
+				$key = key($this->table_list);
 			} else {
 				$table = $this->table_list;
 			}
@@ -557,7 +558,8 @@ class DBQuery {
 			if (is_array($this->table_list)) {
 				reset($this->table_list);
 				// Grab the first record
-				list($key, $table) = each ($this->table_list);
+				$table = current($this->table_list);
+				$key = key($this->table_list);
 			} else {
 				$table = $this->table_list;
 			}
@@ -582,7 +584,8 @@ class DBQuery {
 			if (is_array($this->table_list)) {
 				reset($this->table_list);
 				// Grab the first record
-				list($key, $table) = each ($this->table_list);
+				$table = current($this->table_list);
+				$key = key($this->table_list);
 			} else {
 				$table = $this->table_list;
 			}
@@ -606,8 +609,10 @@ class DBQuery {
 		$q = 'DELETE FROM ';
 		if (isset($this->table_list)) {
 			if (is_array($this->table_list)) {
+				reset($this->table_list);
 				// Grab the first record
-				list($key, $table) = each ($this->table_list);
+				$table = current($this->table_list);
+				$key = key($this->table_list);
 			} else {
 				$table = $this->table_list;
 			}
@@ -804,13 +809,13 @@ class DBQuery {
 
 		include_once DP_BASE_DIR.'/lib/adodb/adodb-xmlschema.inc.php';
 		$schema = new adoSchema($db);
-		$schema->setUpgradeMode($mode);
+		$schema->SetUpgradeMethod($mode);
 		if (isset($this->_table_prefix) && $this->_table_prefix) {
-			$schema->setPrefix($this->_table_prefix, false);
+			$schema->SetPrefix($this->_table_prefix, false);
 		}
 		$schema->ContinueOnError(true);
-		if (($sql = $scheme->ParseSchemaString($xml)) == false) {
-			$AppUI->setMsg(array('Error in XML Schema', 'Error', $db->ErrorMsg()), UI_MSG_ERR);
+		if (($sql = $schema->ParseSchemaString($xml)) == false) {
+			$AppUI->setMsg(array('Error in XML Schema', 'Error', $db->ErrorMsg()), UI_MSG_ERROR);
 			return false;
 		}
 		
@@ -939,7 +944,7 @@ class DBQuery {
 	
 	function quote($string) {
 		global $db;
-		return $db->qstr($string, get_magic_quotes_runtime());
+		return $db->qstr($string, false);  // get_magic_quotes_runtime() removed in PHP 8.0, always false
 	}
 
 	/**
@@ -955,8 +960,53 @@ class DBQuery {
 	function quote_sanitised($string) {
 		return $this->quote($this->sanitise($string));
 	}
+
+	/**
+	 * Bind a hash to an object, optionally stripping slashes.
+	 * @param array $hash The hash to bind
+	 * @param object $object The object to bind to
+	 * @param mixed $unused Unused parameter
+	 * @param bool $strip Whether to strip slashes
+	 * @param bool $bindAll Whether to bind all fields or only existing properties
+	 */
+	function bindHashToObject($hash, &$object, $unused, $strip = true, $bindAll = false) {
+		if (!is_array($hash) || !is_object($object)) {
+			return;
+		}
+		foreach ($hash as $k => $v) {
+			if ($bindAll || property_exists($object, $k)) {
+				if ($strip) {
+					$object->$k = stripslashes($v);
+				} else {
+					$object->$k = $v;
+				}
+			}
+		}
+	}
 }
 //1}}}
+
+/**
+ * Bind a hash to an object, optionally stripping slashes.
+ * @param array $hash The hash to bind
+ * @param object $obj The object to bind to
+ * @param bool $bindAll Whether to bind all fields or only existing properties
+ * @param bool $strip Whether to strip slashes
+ */
+function bindHashToObject($hash, &$obj, $bindAll = false, $strip = true) {
+	if (!is_array($hash) || !is_object($obj)) {
+		return;
+	}
+	foreach ($hash as $k => $v) {
+		if ($bindAll || property_exists($obj, $k)) {
+			if ($strip) {
+				$obj->$k = stripslashes($v);
+			} else {
+				$obj->$k = $v;
+			}
+		}
+	}
+}
 
 // vim600: fdm=marker sw=2 ts=8 ai:
 ?>

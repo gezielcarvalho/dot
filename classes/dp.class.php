@@ -10,8 +10,12 @@ if (!defined('DP_BASE_DIR')) {
 	die('You should not access this file directly.');
 }
 
-require_once $AppUI->getSystemClass('query');
-require_once $AppUI->getModuleClass('system');
+// Load required classes only if AppUI is available
+global $AppUI;
+if ($AppUI) {
+	require_once $AppUI->getSystemClass('query');
+	require_once $AppUI->getModuleClass('system');
+}
 
 /**
  *	CDpObject Abstract Class.
@@ -33,6 +37,10 @@ class CDpObject {
 	 *	@var string Permission module name relating to child class
 	 */
 	protected $_permission_name = '';
+	/**
+	 *	@var string Module directory name
+	 */
+	protected $_module_directory = '';
 	/**
 	 *	@var string Error message
 	 */
@@ -264,8 +272,17 @@ class CDpObject {
 	public function canDelete(&$msg, $oid=null, $joins=null) {
 		global $AppUI;
 		
+		if (!$AppUI) {
+			$msg = 'Application not initialized';
+			return false;
+		}
+		
 		// First things first.  Are we allowed to delete?
 		$acl =& $AppUI->acl();
+		if (!$acl) {
+			$msg = $AppUI->_('noDeletePermission');
+			return false;
+		}
 		if (!($acl->checkModuleItem($this->_permission_name, 'delete', $oid))) {
 			$msg = $AppUI->_('noDeletePermission');
 			return false;
@@ -301,7 +318,7 @@ class CDpObject {
 			foreach ($joins as $table) {
 				$table_alias = 't' . $i++;
 				$k = $table['idfield'] . $table_alias;
-				if ($obj->$k) {
+				if ($obj && $obj->$k) {
 					$msg[] = $table_alias . '.' . $AppUI->_($table['label']);
 				}
 			}
@@ -349,7 +366,16 @@ class CDpObject {
 	 */
 	public function getDeniedRecords($uid) {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			return array(); // AppUI not available
+		}
+		
 		$perms =& $AppUI->acl();
+		
+		if (!$perms) {
+			return array(); // ACL not available, return empty array
+		}
 		
 		$uid = intval($uid);
 		$uid || exit ('FATAL ERROR<br />' . get_class($this) 
@@ -370,10 +396,21 @@ class CDpObject {
 	// returns a list of records exposed to the user
 	public function getAllowedRecords($uid, $fields='*', $orderby='', $index=null, $extra=null) {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			return array(); // AppUI not available
+		}
+		
 		$perms = $AppUI->acl();
 		
+		if (!$perms) {
+			return array(); // ACL not available, no records allowed
+		}
+		
 		$uid = intval($uid);
-		$uid || exit ('FATAL ERROR<br />' . get_class($this) . '::getAllowedRecords failed');
+		if ($uid <= 0) {
+			return array(); // Not logged in, no records allowed
+		}
 		$deny = $perms->getDeniedItems($this->_tbl, $uid);
 		$allow = $perms->getAllowedItems($this->_tbl, $uid);
 		if (!($perms->checkModule($this->_tbl, 'view', $uid))) {
@@ -406,12 +443,26 @@ class CDpObject {
 			$this->_query->addOrder($orderby);
 		}
 		
+		if (!$this->_query) {
+			return array(); // Query object not available
+		}
+		
 		return $this->_query->loadHashList($index);
 	}
 	
 	public function getAllowedSQL($uid, $index = null, $alt_mod = null) {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			return array('1=0'); // AppUI not available
+		}
+		
 		$perms =& $AppUI->acl();
+		
+		if (!$perms) {
+			return array('1=0'); // ACL not available, no records allowed
+		}
+		
 		$mod = ((isset($alt_mod)) ? $alt_mod : $this->_tbl);
 		
 		$uid = intval($uid);
@@ -442,7 +493,19 @@ class CDpObject {
 	
 	public function setAllowedSQL($uid, &$query, $index = null, $key = null, $alt_mod = null) {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			$query->addWhere('1=0'); // AppUI not available
+			return;
+		}
+		
 		$perms =& $AppUI->acl();
+		
+		if (!$perms) {
+			$query->addWhere('1=0'); // ACL not available, no records allowed
+			return;
+		}
+		
 		$mod = ((isset($alt_mod)) ? $alt_mod : $this->_tbl);
 		
 		$uid = intval($uid);

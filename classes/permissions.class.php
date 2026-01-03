@@ -41,6 +41,10 @@ require_once DP_BASE_DIR . '/lib/phpgacl/gacl_api.class.php';
  */
 class dPacl extends gacl_api {
 	
+	protected $_original_db_prefix;
+	protected $db;
+	protected $_debug_msg;
+	
 	function __construct($opts = null) {
 		global $db;
 		
@@ -67,7 +71,7 @@ class dPacl extends gacl_api {
 		if (dPgetConfig('debug', 0) > 10) {
 			$this->_debug = true;
 		}
-		parent::gacl_api($opts);
+		parent::gacl($opts);
 	}
 	
 	function checkLogin($login) {
@@ -90,6 +94,9 @@ class dPacl extends gacl_api {
 
 	function checkModule($module, $op, $userid = null) {
 		if (!($userid)) {
+			if (!$GLOBALS['AppUI']) {
+				return false; // AppUI not available
+			}
 			$userid = $GLOBALS['AppUI']->user_id;
 		}
 
@@ -101,7 +108,7 @@ class dPacl extends gacl_api {
 	    $q->setLimit(1);
 	    $arr=$q->loadHash();
     
-	    $result=$arr['allow'];
+	    $result = isset($arr['allow']) ? $arr['allow'] : false;
 	    //echo $result;
 	    dprint(__FILE__, __LINE__, 2, "checkModule( $module, $op, $userid) returned $result");
 	    return $result;
@@ -115,6 +122,9 @@ class dPacl extends gacl_api {
 	
 	function checkModuleItem($module, $op, $item = null, $userid = null) {
 		if (!($userid)) {
+			if (!$GLOBALS['AppUI']) {
+				return false; // AppUI not available
+			}
 			$userid = $GLOBALS['AppUI']->user_id;
 		}
 		if (!($item)) {
@@ -148,6 +158,9 @@ class dPacl extends gacl_api {
 	 */
 	function checkModuleItemDenied($module, $op, $item, $user_id = null) {
 		if (!$user_id) {
+			if (!$GLOBALS['AppUI']) {
+				return false; // AppUI not available
+			}
 			$user_id = $GLOBALS['AppUI']->user_id;
 		}
 		$q = new DBQuery;

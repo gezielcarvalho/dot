@@ -47,12 +47,12 @@
 /**
  * Get the Date class
  */
-require_once 'Date.php';
+require_once dirname(__FILE__) . '/../Date.php';
 
 /**
  * Get the Date_Calc class
  */
-require_once 'Date/Calc.php';
+require_once dirname(__FILE__) . '/Calc.php';
 
 // }}}
 // {{{ Constants
