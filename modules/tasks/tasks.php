@@ -634,13 +634,20 @@ echo bestColor(@$p['project_color_identifier']); ?>;text-decoration:none;">
 		}
 		
 		global $tasks_filtered, $children_of;
+		// ensure globals are arrays to avoid null offset warnings
+		if (!is_array($tasks_filtered)) {
+			$tasks_filtered = array();
+		}
+		if (!is_array($children_of)) {
+			$children_of = array();
+		}
 		//get list of task ids and set-up array of children
 		if (is_array($p['tasks'])) {
 			foreach ($p['tasks'] as $i => $t) {
 				$tasks_filtered[] = $t['task_id']; 
-				$children_of[$t['task_parent']] = (($children_of[$t['task_parent']])
-												   ?$children_of[$t['task_parent']]:
-												   array());
+				$children_of[$t['task_parent']] = (isset($children_of[$t['task_parent']])
+												   ? $children_of[$t['task_parent']]
+												   : array());
 				if ($t['task_parent'] != $t['task_id']) {
 					array_push($children_of[$t['task_parent']], $t['task_id']);
 				}
@@ -649,16 +656,16 @@ echo bestColor(@$p['project_color_identifier']); ?>;text-decoration:none;">
 		
 		//start displaying tasks
 		if (is_array($p['tasks'])) {
-			$summaries = array('duration' => 0, 'start_date' => date('Y-m-d'), 'end-date' => '');
+			$summaries = array('duration' => 0, 'start_date' => date('Y-m-d'), 'end_date' => '');
 			foreach ($p['tasks'] as $i => $t1) {
 				// Record summaries
 				if (!$t1['task_dynamic']) {
 					$summaries['duration'] += $t1['task_duration'];
 				}
-				if ($t1['task_start_date'] < $summaries['start_date']) {
+				if (!empty($t1['task_start_date']) && $t1['task_start_date'] < $summaries['start_date']) {
 					$summaries['start_date'] = $t1['task_start_date'];
 				}
-				if ($t1['task_end_date'] > $summaries['end_date']) {
+				if (!empty($t1['task_end_date']) && ($summaries['end_date'] === '' || $t1['task_end_date'] > $summaries['end_date'])) {
 					$summaries['end_date'] = $t1['task_end_date'];
 				}
 				if ($task_sort_item1) {
@@ -711,7 +718,7 @@ $df = $AppUI->getPref('SHDATEFORMAT');
 	<td colspan="<?php echo $cols - 4 ?>"><?php echo $AppUI->_('Summaries'); ?>: </td>
 	<td><?php $summary_date = new CDate($summaries['start_date']); echo $summary_date->format($df); ?></td>
 	<td align="center"><?php echo $summaries['duration'] ?> <?php echo $AppUI->_('hours'); ?></td>
-	<td><?php $summary_date = new CDate($summaries['end_date']); echo $summary_date->format($df); ?></td>
+	<td><?php if (!empty($summaries['end_date'])) { $summary_date = new CDate($summaries['end_date']); echo $summary_date->format($df); } else { echo '-'; } ?></td>
 	<td></td>
 </tr>
 <?php

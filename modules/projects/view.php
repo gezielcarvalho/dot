@@ -206,18 +206,18 @@ if ($canAuthorTask) {
 	$titleBlock->addCell();
 	$titleBlock->addCell(('<input type="submit" class="button" value="' . $AppUI->_('new task') 
 	                      . '" />'), '', ('<form action="?m=tasks&amp;a=addedit&amp;task_project=' 
-	                                    . $project_id . '" method="post">'), '</form>');
+	                                    . $project_id . '" method="post">' . "<input type=\"hidden\" name=\"csrf_token\" value=\"" . generateCSRFToken() . "\" />"), '</form>');
 }
 if ($canEdit) {
 	$titleBlock->addCell();
 	$titleBlock->addCell(('<input type="submit" class="button" value="' . $AppUI->_('new event') 
 	                      . '" />'), '', ('<form action="?m=calendar&amp;a=addedit&amp;event_project=' 
-	                                    . $project_id . '" method="post">'), '</form>');
+	                                    . $project_id . '" method="post">' . "<input type=\"hidden\" name=\"csrf_token\" value=\"" . generateCSRFToken() . "\" />"), '</form>');
 
 	$titleBlock->addCell();
 	$titleBlock->addCell(('<input type="submit" class="button" value="' . $AppUI->_('new file') 
 	                      . '" />'), '', ('<form action="?m=files&amp;a=addedit&amp;project_id=' 
-	                                    . $project_id . '" method="post">'), '</form>');
+	                                    . $project_id . '" method="post">' . "<input type=\"hidden\" name=\"csrf_token\" value=\"" . generateCSRFToken() . "\" />"), '</form>');
 }
 $titleBlock->addCrumb('?m=projects', 'projects list');
 if ($canEdit) {

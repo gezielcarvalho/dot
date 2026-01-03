@@ -2733,14 +2733,32 @@ function showtask(&$a, $level=0, $is_opened = true, $today_view = false, $hideOp
 	// prepare coloured highlight of task time information
 	$style = '';
 	if ($start_date) {
-		
-		if ($now->after($start_date) && $a['task_percent_complete'] == 0) {
+		// guard date comparisons to avoid PEAR date timezone null errors
+		$now_after_start = false;
+		$now_after_end = false;
+		try {
+			if (is_object($start_date)) {
+				$now_after_start = $now->after($start_date);
+			}
+		} catch (Throwable $t) {
+			$now_after_start = false;
+		}
+
+		try {
+			if (!empty($end_date) && is_object($end_date)) {
+				$now_after_end = $now->after($end_date);
+			}
+		} catch (Throwable $t) {
+			$now_after_end = false;
+		}
+
+		if ($now_after_start && $a['task_percent_complete'] == 0) {
 			$style = 'background-color:#ffeebb';
-		} else if ($now->after($start_date) && $a['task_percent_complete'] < 100) {
+		} else if ($now_after_start && $a['task_percent_complete'] < 100) {
 			$style = 'background-color:#e6eedd';
 		}
-		
-		if (!empty($end_date) && $now->after($end_date)) {
+
+		if ($now_after_end) {
 			$style = 'background-color:#cc6666;color:#ffffff';
 		}
 
@@ -2884,34 +2902,53 @@ function showtask(&$a, $level=0, $is_opened = true, $today_view = false, $hideOp
 			}
 			$s .= join (', ', $a_u_tmp_array) . '</td>';
 		} else {
-			$s .= ('<td align="center" nowrap="nowrap">'
-				   .'<a href="?m=admin&amp;a=viewuser&amp;user_id=' . $assigned_users[0]['user_id'] 
-				   . '" title="' . $AppUI->_('Extent of Assignment') . ':' 
-				   . $userAlloc[$assigned_users[0]['user_id']]['charge']. '%; ' 
-				   . $AppUI->_('Free Capacity') . ':' 
-				   . $userAlloc[$assigned_users[0]['user_id']]['freeCapacity'] . '%">' 
-				   . $AppUI->___($assigned_users[0]['user_username'] )
-				   .' (' . $assigned_users[0]['perc_assignment'] .'%)</a>');
-			if ($a['assignee_count'] > 1) {
-				$s .= (' <a href="javascript: void(0);" onclick="javascript:toggle_users(' 
-					   . "'users_" . $a['task_id'] . "'" . ');" title="' 
-					   . join (', ', $a_u_tmp_array) .'">(+' . ($a['assignee_count'] - 1) . ')</a>'
-					   . '<span style="display: none" id="users_' . $a['task_id'] . '">');
-				$a_u_tmp_array[] = $AppUI->___($assigned_users[0]['user_username']);
-				for ($i = 1, $xi = count($assigned_users); $i < $xi; $i++) {
-					$a_u_tmp_array[] = $AppUI->___($assigned_users[$i]['user_username']);
-					$s .= ('<br /><a href="?m=admin&amp;a=viewuser&amp;user_id=' 
-						   . $assigned_users[$i]['user_id'] . '" title="' 
-						   . $AppUI->_('Extent of Assignment') . ':' 
-						   . $userAlloc[$assigned_users[$i]['user_id']]['charge'] . '%; ' 
-						   . $AppUI->_('Free Capacity') . ':' 
-						   . $userAlloc[$assigned_users[$i]['user_id']]['freeCapacity'] . '%">' 
-						   . $AppUI->___($assigned_users[$i]['user_username']) . ' (' 
-						   . $assigned_users[$i]['perc_assignment'] . '%)</a>');
+			// If no assigned users array or it's empty, print empty cell
+			if (!is_array($assigned_users) || count($assigned_users) == 0) {
+				$s .= '<td align="center">-</td>';
+			} else {
+				$first = $assigned_users[0];
+				$uid = isset($first['user_id']) ? $first['user_id'] : 0;
+				$charge = (isset($userAlloc[$uid]['charge']) ? $userAlloc[$uid]['charge'] : 0);
+				$freeCapacity = (isset($userAlloc[$uid]['freeCapacity']) ? $userAlloc[$uid]['freeCapacity'] : 0);
+				$uname = isset($first['user_username']) ? $first['user_username'] : '';
+				$perc = isset($first['perc_assignment']) ? $first['perc_assignment'] : 0;
+
+				$s .= ('<td align="center" nowrap="nowrap">'
+					   .'<a href="?m=admin&amp;a=viewuser&amp;user_id=' . htmlspecialchars($uid) 
+					   . '" title="' . $AppUI->_('Extent of Assignment') . ':' 
+					   . $charge . '%; ' 
+					   . $AppUI->_('Free Capacity') . ':' 
+					   . $freeCapacity . '%">' 
+					   . $AppUI->___($uname)
+					   .' (' . $perc .'%)</a>');
+
+				$assignee_count = isset($a['assignee_count']) ? (int)$a['assignee_count'] : count($assigned_users);
+				if ($assignee_count > 1) {
+					$s .= (' <a href="javascript: void(0);" onclick="javascript:toggle_users(' 
+						   . "'users_" . $a['task_id'] . "'" . ');" title="' 
+						   . join (', ', $a_u_tmp_array) .'">(+' . ($assignee_count - 1) . ')</a>'
+						   . '<span style="display: none" id="users_' . $a['task_id'] . '">');
+					$a_u_tmp_array[] = $AppUI->___($uname);
+					for ($i = 1, $xi = count($assigned_users); $i < $xi; $i++) {
+						$uname_i = isset($assigned_users[$i]['user_username']) ? $assigned_users[$i]['user_username'] : '';
+						$uid_i = isset($assigned_users[$i]['user_id']) ? $assigned_users[$i]['user_id'] : 0;
+						$charge_i = isset($userAlloc[$uid_i]['charge']) ? $userAlloc[$uid_i]['charge'] : 0;
+						$free_i = isset($userAlloc[$uid_i]['freeCapacity']) ? $userAlloc[$uid_i]['freeCapacity'] : 0;
+						$perc_i = isset($assigned_users[$i]['perc_assignment']) ? $assigned_users[$i]['perc_assignment'] : 0;
+						$a_u_tmp_array[] = $AppUI->___($uname_i);
+						$s .= ('<br /><a href="?m=admin&amp;a=viewuser&amp;user_id=' 
+							   . htmlspecialchars($uid_i) . '" title="' 
+							   . $AppUI->_('Extent of Assignment') . ':' 
+							   . $charge_i . '%; ' 
+							   . $AppUI->_('Free Capacity') . ':' 
+							   . $free_i . '%">' 
+							   . $AppUI->___($uname_i) . ' (' 
+							   . $perc_i . '%)</a>');
+					}
+					$s .= '</span>';
 				}
-				$s .= '</span>';
+				$s .= '</td>';
 			}
-			$s .= '</td>';
 		}
 	} else if (! $today_view) {
 		// No users asigned to task
