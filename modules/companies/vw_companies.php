@@ -53,23 +53,11 @@ $q->addGroup('c.company_id');
 $q->addOrder($orderby . ' ' . $orderdir);
 
 // Debug logging: record the final SQL and allowed company lists to help troubleshooting
-$sql = $q->prepare();
-$logEntry = json_encode(array('time'=>date('c'),'file'=>'vw_companies.php','sql'=>$sql,'allowedCompanies'=>array_keys($allowedCompanies)));
-file_put_contents(DP_BASE_DIR . '/tmp/companies_debug.log', $logEntry . "\n", FILE_APPEND);
-// Also append to the session debug log for visibility
-file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', $logEntry . "\n", FILE_APPEND);
-// And send to PHP error log
-error_log('vw_companies debug: ' . $logEntry);
+// Diagnostic logging removed
 
 $rows = $q->loadList();
 // Log result summary (IDs and count)
-$row_ids = array();
-foreach ($rows as $r) {
-	if (isset($r['company_id'])) $row_ids[] = $r['company_id'];
-}
-file_put_contents(DP_BASE_DIR . '/tmp/companies_debug.log', json_encode(array('time'=>date('c'),'file'=>'vw_companies.php','rows_count'=>count($rows),'row_ids'=>$row_ids)) . "\n", FILE_APPEND);
-file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode(array('time'=>date('c'),'file'=>'vw_companies.php','rows_count'=>count($rows),'row_ids'=>$row_ids)) . "\n", FILE_APPEND);
-error_log('vw_companies result: ' . json_encode(array('rows_count'=>count($rows),'row_ids'=>$row_ids)));
+// Diagnostic logging removed
 ?>
 <table width="100%" border="0" cellpadding="2" cellspacing="1" class="tbl" summary="company list">
 <tr>

@@ -11,7 +11,7 @@ class CTitleBlock extends CTitleBlock_core {
 ##
 class CTabBox extends CTabBox_core {
 	function show($extra='', $js_tabs = false) {
-		GLOBAL $AppUI, $dPconfig, $currentTabId, $currentTabName;
+		GLOBAL $AppUI, $dPconfig, $currentTabId, $currentTabName, $m;
 		if (!$AppUI) {
 			return; // AppUI not available
 		}
@@ -77,7 +77,18 @@ class CTabBox extends CTabBox_core {
 				} else if ($js_tabs) {
 					$s .= 'javascript:show_tab(' . $k . ')';
 				} else {
-					$s .= $this->baseHRef.'tab='.$k;
+					// Build a safe href that includes the current module if missing
+					$href = $this->baseHRef;
+					if (mb_strpos($href, 'm=') === false) {
+						$sep = (mb_strpos($href, '?') === false) ? '?' : '&';
+						if (substr($href, -1) === '?' || substr($href, -1) === '&') $sep = '';
+						$href .= $sep . 'm=' . urlencode($m);
+					}
+					// Append the tab parameter using proper separator
+					$sep2 = (mb_strpos($href, '?') === false) ? '?' : '&';
+					if (substr($href, -1) === '?' || substr($href, -1) === '&') $sep2 = '';
+					$href .= $sep2 . 'tab=' . $k;
+					$s .= $href;
 				}
 				
 				$s .='">'.(($v[2]) ? $v[1] : $AppUI->_($v[1])).'</a>&nbsp;</td>' . "\n";
@@ -95,8 +106,21 @@ class CTabBox extends CTabBox_core {
 				$currentTabId = $this->active;
 				$currentTabName = $this->tabs[$this->active][1];
 
-				if (!$js_tabs)
-					require $this->baseInc.$this->tabs[$this->active][0].'.php';
+				if (!$js_tabs) {
+					$incFile = $this->baseInc . $this->tabs[$this->active][0] . '.php';
+					if (is_file($incFile)) {
+						require $incFile;
+					} else {
+						// Try module-relative path as a fallback
+						$alt = DP_BASE_DIR . '/modules/' . (isset($m) ? $m : '') . '/' . $this->tabs[$this->active][0] . '.php';
+						if (is_file($alt)) {
+							require $alt;
+						} elseif (is_file($this->tabs[$this->active][0] . '.php')) {
+							// last resort: relative include
+							require $this->tabs[$this->active][0] . '.php';
+						}
+					}
+				}
 			}
 			if ($js_tabs)
 			{
@@ -106,7 +130,18 @@ class CTabBox extends CTabBox_core {
 						$currentTabId = $k;
 						$currentTabName = $v[1];
 
-						require $this->baseInc.$v[0].'.php';
+							// Try to include the js-tab file using the same safe resolution as above
+							$incFileJs = $this->baseInc . $v[0] . '.php';
+							if (is_file($incFileJs)) {
+								require $incFileJs;
+							} else {
+								$altJs = DP_BASE_DIR . '/modules/' . (isset($m) ? $m : '') . '/' . $v[0] . '.php';
+								if (is_file($altJs)) {
+									require $altJs;
+								} elseif (is_file($v[0] . '.php')) {
+									require $v[0] . '.php';
+								}
+							}
 					echo '</div>';
 					echo ('<script language="javascript" >' . "\n" 
 						  . '//<!--' . "\n" 

@@ -138,7 +138,7 @@ class dPacl extends gacl_api {
 		$q->addOrder('priority ASC,acl_id DESC');
 		$q->setLimit(1);
 		$arr = $q->loadHash();
-	        $result=$arr['allow'];
+	        $result = (is_array($arr) && array_key_exists('allow', $arr)) ? $arr['allow'] : false;
 		if (!$result) {
 			dprint(__FILE__, __LINE__, 2, 
 			       "checkModuleItem($module, $op, $userid) did not return a record");
