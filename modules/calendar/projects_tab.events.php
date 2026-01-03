@@ -15,7 +15,10 @@ $start_date = isset($start_date) ? $start_date : new CDate('0000-00-00 00:00:00'
 $end_date = isset($end_date) ? $end_date : new CDate('9999-12-31 23:59:59');
 
 // assemble the links for the events
-$events = CEvent::getEventsForPeriod($start_date, $end_date, 'all', null, $project_id);
+// Use instance method call (non-static) and ensure we have an array
+$ev = new CEvent();
+$events = $ev->getEventsForPeriod($start_date, $end_date, 'all', null, $project_id);
+$events = is_array($events) ? $events : array();
 //echo '<pre>' . print_r($events, true) .  '</pre>';
 
 $start_hour = dPgetConfig('cal_day_start');
