@@ -34,7 +34,8 @@ $q->addWhere('co.company_id = '.$company_id);
 $sql = $q->prepare();
 $q->clear();
 
-$obj = null;
+$obj = new stdClass();
+$obj->company_id = 0;
 if (!db_loadObject($sql, $obj) && $company_id > 0) {
 	//$AppUI->setMsg('$qid =& $q->exec(); Company'); // What is this for?
 	$AppUI->setMsg('invalidID', UI_MSG_ERROR, true);
@@ -84,6 +85,7 @@ function testURL(x) {
 <form name="changeclient" action="?m=companies" method="post">
 	<input type="hidden" name="dosql" value="do_company_aed" />
 	<input type="hidden" name="company_id" value="<?php echo dPformSafe($company_id); ?>" />
+	<input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>" />
 <table cellspacing="1" cellpadding="1" border="0" width='100%' class="std" summary="add/edit company">
 
 
