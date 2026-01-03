@@ -117,7 +117,13 @@ class CDate extends Date {
 		if (!is_object($when)) {
 			$when = new CDate($when);
 		}
-		return parent::after($when);
+		try {
+			return parent::after($when);
+		} catch (\Throwable $t) {
+			// Log the error for diagnostics and return false to indicate not-after
+			@file_put_contents(DP_BASE_DIR . '/tmp/date_error.log', date('c') . " - CDate::after error: " . $t->getMessage() . PHP_EOL, FILE_APPEND);
+			return false;
+		}
 	}
 
 /**

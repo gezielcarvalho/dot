@@ -168,15 +168,15 @@ function showtask_edit($task, $level=0) {
 		$end->addSeconds(@$task['task_duration'] * $task['task_duration_type'] * SEC_HOUR);
 	}
 
-	if ($now->after($start) && $task['task_percent_complete'] == 0) {
+	if ($start && $now->after($start) && $task['task_percent_complete'] == 0) {
 		$style = 'background-color:#ffeebb';
-	} else if ($now->after($start)) {
+	} else if ($start && $now->after($start)) {
 		$style = 'background-color:#e6eedd';
 	}
 
-	if ($now->after($end)) {
+	if ($end && $now->after($end)) {
 		$style = (($end) ? 'background-color:#cc6666;color:#ffffff' 
-		          : 'background-color:lightgray;');
+				  : 'background-color:lightgray;');
 	} 
 	$days = (($start) ? ($end->dateDiff($now)) : 0);
 	
@@ -302,9 +302,10 @@ if ($deny) {
 }
 $q->addOrder('p.project_name');
 $projects = db_loadHashList($q->prepare(true), 'project_id');
+$p = array();
 $p[0] = $AppUI->_('[none]');
-foreach ($projects as $proj) {
-	$p[$proj[0]] = $proj[1];
+foreach ($projects as $row) {
+	$p[$row[0]] = $row[1];
 }
 if ($project_id) {
 	$p[$project_id] = $AppUI->_('[same project]');
