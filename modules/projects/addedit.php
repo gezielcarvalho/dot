@@ -76,8 +76,16 @@ $df = $AppUI->getPref('SHDATEFORMAT');
 
 $start_date = intval($row->project_start_date) ? new CDate($row->project_start_date) : null;
 $end_date = intval($row->project_end_date) ? new CDate($row->project_end_date) : null;
-$actual_end_date = intval($criticalTasks[0]['task_end_date']) ? new CDate($criticalTasks[0]['task_end_date']) : null;
-$style = (($actual_end_date > $end_date) && !empty($end_date)) ? 'style="color:red; font-weight:bold"' : '';
+// Safely extract actual end date from critical tasks if available
+$actual_end_date = null;
+if (is_array($criticalTasks) && isset($criticalTasks[0]['task_end_date']) && intval($criticalTasks[0]['task_end_date'])) {
+	$actual_end_date = new CDate($criticalTasks[0]['task_end_date']);
+}
+// Determine style only when both dates are available
+$style = '';
+if ($actual_end_date && $end_date) {
+	$style = ($actual_end_date > $end_date) ? 'style="color:red; font-weight:bold"' : '';
+}
 
 // setup the title block
 $ttl = $project_id > 0 ? "Edit Project" : "New Project";

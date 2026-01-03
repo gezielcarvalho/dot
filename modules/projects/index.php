@@ -145,9 +145,10 @@ $titleBlock->addCell(('<form action="?m=projects" method="post" name="pickCompan
                       . $cBuffer . "\n" .  '</form>' . "\n"));
 $titleBlock->addCell();
 if ($canAuthor) {
-	$titleBlock->addCell(('<form action="?m=projects&amp;a=addedit" method="post">' . "\n" 
-	                      . '<input type="submit" class="button" value="' 
-	                      . $AppUI->_('new project') . '" />'. "\n" . '</form>' . "\n"));
+	$titleBlock->addCell(('<form action="?m=projects&amp;a=addedit" method="post">' . "\n"
+					  . '<input type="hidden" name="csrf_token" value="' . generateCSRFToken() . '" />' . "\n"
+					  . '<input type="submit" class="button" value="' 
+					  . $AppUI->_('new project') . '" />'. "\n" . '</form>' . "\n"));
 }
 $titleBlock->show();
 
@@ -173,6 +174,9 @@ $statuses = $q->loadHashList('project_status');
 $q->clear();
 $all_projects = 0;
 foreach ($statuses as $k => $v) {
+	if (!isset($project_status_tabs)) {
+		$project_status_tabs = array();
+	}
 	$project_status_tabs[$v['project_status']] = ($AppUI->_($project_types[$v['project_status']]) 
 													  . ' (' . $v['count'] . ')');
 	//count all projects
@@ -200,8 +204,10 @@ $tabBox = new CTabBox('?m=projects', DP_BASE_DIR . '/modules/projects/', $tab);
 
 $tabBox->add('vw_idx_proposed', $AppUI->_('All') . ' (' . $all_projects . ')' , true,  500);
 foreach ($project_types as $psk => $project_status) {
-		$tabBox->add($project_status_file[$psk], 
-					 (($project_status_tabs[$psk]) ? $project_status_tabs[$psk] : $AppUI->_($project_status)), true, $psk);
+	$label = (isset($project_status_tabs[$psk]) && $project_status_tabs[$psk])
+	    ? $project_status_tabs[$psk]
+	    : $AppUI->_($project_status);
+	$tabBox->add($project_status_file[$psk], $label, true, $psk);
 }
 $min_view = true;
 $tabBox->add('viewgantt', 'Gantt');
