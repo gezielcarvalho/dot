@@ -554,7 +554,7 @@ echo bestColor(@$p['project_color_identifier']); ?>;text-decoration:none;">
 	<td align="right">
 <?php 
 			$hasEditableTask = ((isset($canEdit) && $canEdit) ? true : false);
-			if (is_array($p['tasks']) && !($hasEditableTask)) {
+			if (isset($p['tasks']) && is_array($p['tasks']) && !($hasEditableTask)) {
 				foreach ($p['tasks'] as $i => $t1) {
 					$hasEditableTask = (getPermission('tasks', 'edit',  $t1['task_id']) 
 					                    || $hasEditableTask);
@@ -624,7 +624,7 @@ echo bestColor(@$p['project_color_identifier']); ?>;text-decoration:none;">
 			 ** as it is normally done in array_csort function in order to economise
 			 ** cpu time as we have to go through the array there anyway
 			 */
-			if (is_array($p['tasks'])) {
+			if (isset($p['tasks']) && is_array($p['tasks'])) {
 				foreach ($p['tasks'] as $j => $task_change_end_date) {
 					if ($task_change_end_date['task_end_date'] == '0000-00-00 00:00:00') {
 						 $task_change_end_date['task_end_date'] = calcEndByStartAndDuration($task_change_end_date);
@@ -642,7 +642,7 @@ echo bestColor(@$p['project_color_identifier']); ?>;text-decoration:none;">
 			$children_of = array();
 		}
 		//get list of task ids and set-up array of children
-		if (is_array($p['tasks'])) {
+		if (isset($p['tasks']) && is_array($p['tasks'])) {
 			foreach ($p['tasks'] as $i => $t) {
 				$tasks_filtered[] = $t['task_id']; 
 				$children_of[$t['task_parent']] = (isset($children_of[$t['task_parent']])
@@ -655,8 +655,9 @@ echo bestColor(@$p['project_color_identifier']); ?>;text-decoration:none;">
 		}
 		
 		//start displaying tasks
-		if (is_array($p['tasks'])) {
-			$summaries = array('duration' => 0, 'start_date' => date('Y-m-d'), 'end_date' => '');
+		// Ensure summaries always exists even if no tasks present
+		$summaries = array('duration' => 0, 'start_date' => date('Y-m-d'), 'end_date' => '');
+		if (isset($p['tasks']) && is_array($p['tasks'])) {
 			foreach ($p['tasks'] as $i => $t1) {
 				// Record summaries
 				if (!$t1['task_dynamic']) {
