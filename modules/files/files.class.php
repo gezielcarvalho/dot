@@ -95,10 +95,20 @@ class CFile extends CDpObject {
 	
 	function store($updateNulls = false) {
 		global $helpdesk_available;
-		if ($helpdesk_available && $this->file_helpdesk_item != 0) {
+		// If helpdesk integration is enabled and a helpdesk item was provided,
+		// create a helpdesk task log entry.
+		if ($helpdesk_available && !empty($this->file_helpdesk_item)) {
 			$this->addHelpDeskTaskLog();
+		} else {
+			// If helpdesk is not available (or no item provided), ensure the
+			// `file_helpdesk_item` property is NULL so it is not included in
+			// the INSERT/UPDATE SQL (prevents Unknown column errors when the
+			// schema doesn't define this field).
+			if (property_exists($this, 'file_helpdesk_item')) {
+				$this->file_helpdesk_item = NULL;
+			}
 		}
-		parent::store();
+		return parent::store($updateNulls);
 	}
 	
 	function addHelpDeskTaskLog() {

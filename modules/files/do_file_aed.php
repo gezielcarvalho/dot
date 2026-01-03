@@ -112,9 +112,46 @@ $upload = null;
 if (isset($_FILES['formfile'])) {
 	$upload = $_FILES['formfile'];
 
+	// Prefer to check the upload error code first to provide a clearer message
+	if (isset($upload['error']) && $upload['error'] !== UPLOAD_ERR_OK) {
+		switch ($upload['error']) {
+			case UPLOAD_ERR_INI_SIZE:
+				$err = 'The uploaded file exceeds the upload_max_filesize directive in php.ini.';
+				break;
+			case UPLOAD_ERR_FORM_SIZE:
+				$err = 'The uploaded file exceeds the MAX_FILE_SIZE directive that was specified in the HTML form.';
+				break;
+			case UPLOAD_ERR_PARTIAL:
+				$err = 'The uploaded file was only partially uploaded.';
+				break;
+			case UPLOAD_ERR_NO_FILE:
+				$err = 'No file was uploaded.';
+				break;
+			case UPLOAD_ERR_NO_TMP_DIR:
+				$err = 'Missing a temporary folder.';
+				break;
+			case UPLOAD_ERR_CANT_WRITE:
+				$err = 'Failed to write file to disk.';
+				break;
+			case UPLOAD_ERR_EXTENSION:
+				$err = 'A PHP extension stopped the file upload.';
+				break;
+			default:
+				$err = 'Unknown upload error.';
+		}
+		$AppUI->setMsg($err, UI_MSG_ERROR);
+		$AppUI->redirect($redirect);
+	}
+
 	if ($upload['size'] < 1) {
 		if (!$file_id) {
-			$AppUI->setMsg('Upload file size is zero. Process aborted.', UI_MSG_ERROR);
+			// If the POST contains data but PHP emptied $_FILES, it is commonly due to
+			// `post_max_size` or `upload_max_filesize` being too small. Provide guidance.
+			if (isset($_SERVER['CONTENT_LENGTH']) && (int) $_SERVER['CONTENT_LENGTH'] > 0 && empty($_POST)) {
+				$AppUI->setMsg('No uploaded data was received. This usually means `post_max_size` or `upload_max_filesize` in php.ini is too small.', UI_MSG_ERROR);
+			} else {
+				$AppUI->setMsg('Upload file size is zero. Process aborted.', UI_MSG_ERROR);
+			}
 			$AppUI->redirect($redirect);
 		}
 	} else {
