@@ -29,7 +29,7 @@ if (!defined('DP_BASE_DIR')) {
 </tr>
 <tr>
 	<td style="background-color: #eeeeee" align="right" nowrap width="100">
-		<?php echo $AppUI->_('Username');?>:
+		<?php echo ($AppUI ? $AppUI->_('Username') : 'Username');?>:
 	</td>
 	<td style="background-color: #eeeeee" align="left" class="menufontlight" nowrap>
 		<input type="text" size="25" maxlength="255" name="username" class="text" />
@@ -37,7 +37,7 @@ if (!defined('DP_BASE_DIR')) {
 </tr>
 <tr>
 	<td style="background-color: #eeeeee" align="right"  nowrap>
-		<?php echo $AppUI->_('Password');?>:
+		<?php echo ($AppUI ? $AppUI->_('Password') : 'Password');?>:
 	</td>
 	<td style="background-color: #eeeeee" align="left" class="menufontlight" nowrap>
 		<input type="password" size="25" maxlength="32" name="password" class="text" />
@@ -45,13 +45,13 @@ if (!defined('DP_BASE_DIR')) {
 </tr>
 <tr>
 	<td style="background-color: #eeeeee" align="center" class="menufontlight" nowrap colspan="2">
-		<input type="submit" name="login" value="<?php echo $AppUI->_('login');?>" class="button" /></p>
+		<input type="submit" name="login" value="<?php echo $AppUI ? $AppUI->_('login') : 'Login';?>" class="button" />
 	</td>
 </tr>
 </table>
 
 <p align="center"><?php 
-	echo '<span class="error">'.$AppUI->getMsg().'</span>';
+	echo '<span class="error">'.($AppUI ? $AppUI->getMsg() : '').'</span>';
 	//echo ini_get('register_globals') ? '' : '<br /><span class="warning">WARNING: dotproject is not fully supported with register_globals=off</span>';
 ?></p>
 
@@ -61,7 +61,7 @@ if (!defined('DP_BASE_DIR')) {
 		<br />
 		<ul type="square">
 			<li>
-				<A href="mailto:<?php echo 'admin@' . $dPconfig['site_domain'];?>"><?php echo $AppUI->_('forgotPassword');?></a>
+				<A href="mailto:<?php echo 'admin@' . $dPconfig['site_domain'];?>"><?php echo ($AppUI ? $AppUI->_('forgotPassword') : 'Forgot Password');?></a>
 			</li>
 		</ul>
 	</td>
@@ -70,11 +70,11 @@ if (!defined('DP_BASE_DIR')) {
 	<td align=center>
 		<img src="./images/icons/dp.gif" width="42" height="42" border=0 alt="dotproject" />
 		<p>dotproject</p>
-		<p><?php echo $AppUI->_('openSource');?></p>
+		<p><?php echo ($AppUI ? $AppUI->_('openSource') : 'Open Source');?></p>
 	</td>
 </tr>
 </form>
 </table>
-<center><?php echo $AppUI->_('* You must have cookies enabled in your browser');?></center>
+<center><?php echo ($AppUI ? $AppUI->_('* You must have cookies enabled in your browser') : 'You must have cookies enabled in your browser');?></center>
 </body>
 </html>

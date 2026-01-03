@@ -4,11 +4,15 @@ if (!defined('DP_BASE_DIR')) {
 	die('You should not access this file directly.');
 }
 
-require_once($AppUI->getSystemClass('libmail'));
-require_once($AppUI->getSystemClass('dp'));
-require_once($AppUI->getModuleClass('projects'));
-require_once($AppUI->getSystemClass('event_queue'));
-require_once($AppUI->getSystemClass('date'));
+// Load required classes only if AppUI is available
+global $AppUI;
+if ($AppUI) {
+	require_once($AppUI->getSystemClass('libmail'));
+	require_once($AppUI->getSystemClass('dp'));
+	require_once($AppUI->getModuleClass('projects'));
+	require_once($AppUI->getSystemClass('event_queue'));
+	require_once($AppUI->getSystemClass('date'));
+}
 
 // user based access
 $task_access = array('0'=>'Public',
@@ -77,6 +81,7 @@ class CTask extends CDpObject
 	protected $_reminder_list = array();
 	protected $_reminder_sender = null;
 	protected $_default_batch_status = null;
+	protected $_action = null;
 	
 	
 	public function __construct() {
@@ -85,12 +90,16 @@ class CTask extends CDpObject
 	}
 	
 	function __toString() {
-		return $this -> link . '/' . $this -> type . '/' . $this -> length;
+		return $this->task_name ? $this->task_name : 'Task';
 	}
 	
 	// overload check
 	function check() {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			return 'Application not initialized';
+		}
 		
 		if ($this->task_id === NULL) {
 			return 'task id is NULL';
@@ -190,7 +199,7 @@ class CTask extends CDpObject
 				$this_intersect = array_intersect($this_dependencies, $parents_dependents);
 				//Any tasks dependent on a dynamic parent task cannot be dependencies of task
 				if (array_sum($this_intersect)) {
-					$ids = '(' . implode(',', $intersect) . ')';
+					$ids = '(' . implode(',', $this_intersect) . ')';
 					return array('BadDep_CircularDepOnParentDependent', $ids);
 				}
 				
@@ -874,7 +883,7 @@ class CTask extends CDpObject
 		}
 		if (count($values)) {
 			$q->addTable('task_dependencies');
-			$q->addInsertMulti($filelds, $values);
+			$q->addInsertMulti($fields, $values);
 			$q->exec();
 			$q->clear();
 		}
@@ -920,6 +929,10 @@ class CTask extends CDpObject
 	function notifyOwner() {
 		$q = new DBQuery;
 		GLOBAL $AppUI, $locale_char_set;
+		
+		if (!$AppUI) {
+			return; // AppUI not available
+		}
 		
 		$q->addTable('projects');
 		$q->addQuery('project_name');
@@ -1766,6 +1779,11 @@ class CTask extends CDpObject
 	 */
 	function getAllocation($hash = NULL, $users = NULL) {
 		global $AppUI;
+		
+		if (!$AppUI) {
+			return array(); // AppUI not available
+		}
+		
 		static $Allocations = array();
 
 		// if (! dPgetConfig('check_overallocation') && ! dPgetConfig('direct_edit_assignment')) {
@@ -2072,10 +2090,12 @@ class CTask extends CDpObject
 		// Find the end date of this task, then subtract the required number of days.
 		$date = new CDate($this->task_end_date);
 		$today = new CDate(date('Y-m-d'));
-		if (CDate::compare($date, $today) < 0) {
+		$date_ts = $date->getDate(DATE_FORMAT_UNIXTIME);
+		$today_ts = $today->getDate(DATE_FORMAT_UNIXTIME);
+		if ($date_ts < $today_ts) {
 			$start_day = time();
 		} else {
-			$start_day = $date->getDate(DATE_FORMAT_UNIXTIME);
+			$start_day = $date_ts;
 			$start_day -= ($day * $pre_charge);
 		}
 		
@@ -2541,7 +2561,7 @@ function openClosedTaskRecursive($task_id) {
 		$open_task->peek($task_id) ;
 		$children_to_open = $open_task->getChildren();
 		foreach ($children_to_open as $to_open) {
-			openClosedTaskRecursive($to);
+			openClosedTaskRecursive($to_open);
 		}
 	}
 }

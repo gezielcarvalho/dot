@@ -152,7 +152,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function dateFormat($day, $month, $year, $format)
+    static function dateFormat($day, $month, $year, $format)
     {
         if (!Date_Calc::isValidDate($day, $month, $year)) {
             $year  = Date_Calc::dateNow('%Y');
@@ -248,9 +248,31 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function dateNow($format = DATE_CALC_FORMAT)
+    static function dateNow($format = DATE_CALC_FORMAT)
     {
-        return strftime($format, time());
+        $dt = new DateTime();
+
+        $map = array(
+            '%Y' => 'Y', '%y' => 'y', '%m' => 'm', '%d' => 'd',
+            '%H' => 'H', '%I' => 'h', '%M' => 'i', '%S' => 's',
+            '%a' => 'D', '%A' => 'l', '%b' => 'M', '%B' => 'F',
+            '%e' => 'j', '%j' => 'z', '%p' => 'A', '%%' => '%',
+            '%z' => 'O', '%Z' => 'T'
+        );
+
+        $phpFormat = preg_replace_callback('/%[A-Za-z%]/', function ($m) use ($map) {
+            return isset($map[$m[0]]) ? $map[$m[0]] : $m[0];
+        }, $format);
+
+        // Handle day-of-year (%j) because DateTime::format('z') is 0-based
+        if (strpos($format, '%j') !== false) {
+            $result = $dt->format($phpFormat);
+            $dayOfYear = (int) $dt->format('z') + 1;
+            $result = str_replace($map['%j'], $dayOfYear, $result);
+            return $result;
+        }
+
+        return $dt->format($phpFormat);
     }
 
 
@@ -360,7 +382,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function getSecondsInYear($pn_year)
+    static function getSecondsInYear($pn_year)
     {
         $pn_year = intval($pn_year);
 
@@ -416,7 +438,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function getSecondsInMonth($pn_month, $pn_year)
+    static function getSecondsInMonth($pn_month, $pn_year)
     {
         $pn_month = intval($pn_month);
         $pn_year  = intval($pn_year);
@@ -475,7 +497,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function getSecondsInDay($pn_day, $pn_month, $pn_year)
+    static function getSecondsInDay($pn_day, $pn_month, $pn_year)
     {
         // Note to developers:
         //
@@ -608,7 +630,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function secondsPastMidnight($pn_hour, $pn_minute, $pn_second)
+    static function secondsPastMidnight($pn_hour, $pn_minute, $pn_second)
     {
         return 3600 * $pn_hour + 60 * $pn_minute + $pn_second;
     }
@@ -683,7 +705,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function addHours($pn_hours, $pn_day, $pn_month, $pn_year, $pn_hour)
+    static function addHours($pn_hours, $pn_day, $pn_month, $pn_year, $pn_hour)
     {
         if ($pn_hours == 0)
             return array((int) $pn_year,
@@ -740,7 +762,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function addMinutes($pn_minutes,
+    static function addMinutes($pn_minutes,
                         $pn_day,
                         $pn_month,
                         $pn_year,
@@ -811,7 +833,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function addSeconds($pn_seconds,
+    static function addSeconds($pn_seconds,
                         $pn_day,
                         $pn_month,
                         $pn_year,
@@ -1098,7 +1120,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function dateToDays($day, $month, $year)
+    static function dateToDays($day, $month, $year)
     {
         if ($month > 2) {
             // March = 0, April = 1, ..., December = 9,
@@ -1157,7 +1179,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function daysToDate($days, $format = DATE_CALC_FORMAT)
+    static function daysToDate($days, $format = DATE_CALC_FORMAT)
     {
         $days = intval($days);
 
@@ -1199,7 +1221,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function getMonths($pn_year)
+    static function getMonths($pn_year)
     {
         // N.B. Month numbers can be skipped but not duplicated:
         //
@@ -1227,12 +1249,13 @@ class Date_Calc
      * @access  public
      * @static
      */
-    function getMonthNames($pb_abbreviated = false)
+    static function getMonthNames($pb_abbreviated = false)
     {
         $ret = array();
         foreach (Date_Calc::getMonths(2001) as $i) {
-            $ret[$i] = strftime($pb_abbreviated ? '%b' : '%B',
-                                mktime(0, 0, 0, $i, 1, 2001));
+            $dt = new DateTime();
+            $dt->setTimestamp(mktime(0, 0, 0, $i, 1, 2001));
+            $ret[$i] = $dt->format($pb_abbreviated ? 'M' : 'F');
         }
         return $ret;
     }
@@ -1252,7 +1275,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function prevMonth($pn_month, $pn_year)
+    static function prevMonth($pn_month, $pn_year)
     {
         $ha_months   = Date_Calc::getMonths($pn_year);
         $hn_monthkey = array_search($pn_month, $ha_months);
@@ -1279,7 +1302,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function nextMonth($pn_month, $pn_year)
+    static function nextMonth($pn_month, $pn_year)
     {
         $ha_months   = Date_Calc::getMonths($pn_year);
         $hn_monthkey = array_search($pn_month, $ha_months);
@@ -1312,7 +1335,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function addMonthsToDays($pn_months, $pn_days)
+    static function addMonthsToDays($pn_months, $pn_days)
     {
         if ($pn_months == 0)
             return (int) $pn_days;
@@ -1373,7 +1396,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function addMonths($pn_months,
+    static function addMonths($pn_months,
                        $pn_day,
                        $pn_month,
                        $pn_year,
@@ -1422,7 +1445,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function addYearsToDays($pn_years, $pn_days)
+    static function addYearsToDays($pn_years, $pn_days)
     {
         if ($pn_years == 0)
             return (int) $pn_days;
@@ -1492,7 +1515,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function addYears($pn_years,
+    static function addYears($pn_years,
                       $pn_day,
                       $pn_month,
                       $pn_year,
@@ -1542,7 +1565,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function addDays($pn_days,
+    static function addDays($pn_days,
                      $pn_day,
                      $pn_month,
                      $pn_year,
@@ -1586,7 +1609,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function getFirstDayOfMonth($pn_month, $pn_year)
+    static function getFirstDayOfMonth($pn_month, $pn_year)
     {
         return 1;
     }
@@ -1627,7 +1650,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function firstDayOfMonth($pn_month, $pn_year)
+    static function firstDayOfMonth($pn_month, $pn_year)
     {
         return Date_Calc::dateToDays(Date_Calc::getFirstDayOfMonth($pn_month,
                                                                    $pn_year),
@@ -1651,7 +1674,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function lastDayOfMonth($pn_month, $pn_year)
+    static function lastDayOfMonth($pn_month, $pn_year)
     {
         list($hn_nmyear, $hn_nextmonth) = Date_Calc::nextMonth($pn_month,
                                                                $pn_year);
@@ -1672,7 +1695,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function getFirstMonthOfYear($pn_year)
+    static function getFirstMonthOfYear($pn_year)
     {
         $ha_months = Date_Calc::getMonths($pn_year);
         return $ha_months[0];
@@ -1693,7 +1716,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function firstDayOfYear($pn_year)
+    static function firstDayOfYear($pn_year)
     {
         return Date_Calc::firstDayOfMonth(Date_Calc::getFirstMonthOfYear($pn_year),
                                           $pn_year);
@@ -1847,7 +1870,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function isoWeekDate($pn_day = 0, $pn_month = 0, $pn_year = null)
+    static function isoWeekDate($pn_day = 0, $pn_month = 0, $pn_year = null)
     {
         if (is_null($pn_year)) {
             $pn_year = Date_Calc::dateNow('%Y');
@@ -1982,7 +2005,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function weekOfYear4th($pn_day = 0,
+    static function weekOfYear4th($pn_day = 0,
                            $pn_month = 0,
                            $pn_year = null,
                            $pn_firstdayofweek = DATE_CALC_BEGIN_WEEKDAY)
@@ -2056,7 +2079,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function weekOfYear7th($pn_day = 0,
+    static function weekOfYear7th($pn_day = 0,
                            $pn_month = 0,
                            $pn_year = null,
                            $pn_firstdayofweek = DATE_CALC_BEGIN_WEEKDAY)
@@ -2164,7 +2187,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function dayOfYear($pn_day = 0, $pn_month = 0, $pn_year = null)
+    static function dayOfYear($pn_day = 0, $pn_month = 0, $pn_year = null)
     {
         if (is_null($pn_year)) {
             $pn_year = Date_Calc::dateNow('%Y');
@@ -2219,7 +2242,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function getWeekdayFullname($pn_day = 0, $pn_month = 0, $pn_year = null)
+    static function getWeekdayFullname($pn_day = 0, $pn_month = 0, $pn_year = null)
     {
         if (is_null($pn_year)) {
             $pn_year = Date_Calc::dateNow('%Y');
@@ -2254,7 +2277,7 @@ class Date_Calc
      * @static
      * @see      Date_Calc::getWeekdayFullname()
      */
-    function getWeekdayAbbrname($pn_day = 0,
+    static function getWeekdayAbbrname($pn_day = 0,
                                 $pn_month = 0,
                                 $pn_year = null,
                                 $length = 3)
@@ -2287,7 +2310,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function getMonthFullname($month)
+    static function getMonthFullname($month)
     {
         $month = (int)$month;
         if (empty($month)) {
@@ -2313,7 +2336,7 @@ class Date_Calc
      * @static
      * @see      Date_Calc::getMonthFullname
      */
-    function getMonthAbbrname($month, $length = 3)
+    static function getMonthAbbrname($month, $length = 3)
     {
         $month = (int)$month;
         if (empty($month)) {
@@ -2344,8 +2367,8 @@ class Date_Calc
     {
         $month  = strtolower($month);
         $months = Date_Calc::getMonthNames();
-        while (list($id, $name) = each($months)) {
-            if (ereg($month, strtolower($name))) {
+        foreach ($months as $id => $name) {
+            if (stripos($name, $month) !== false) {
                 return $id;
             }
         }
@@ -2369,11 +2392,13 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function getWeekDays($pb_abbreviated = false)
+    static function getWeekDays($pb_abbreviated = false)
     {
         for ($i = 0; $i < 7; $i++) {
-            $weekdays[$i] = strftime($pb_abbreviated ? '%a' : '%A',
-                                     mktime(0, 0, 0, 1, $i, 2001));
+            $ts = mktime(0, 0, 0, 1, $i + 1, 2001);
+            $dt = new DateTime();
+            $dt->setTimestamp($ts);
+            $weekdays[$i] = $dt->format($pb_abbreviated ? 'D' : 'l');
         }
         return $weekdays;
     }
@@ -2399,7 +2424,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function daysToDayOfWeek($pn_days)
+    static function daysToDayOfWeek($pn_days)
     {
         // On Julian day 0 the day is Monday (PHP day 1):
         //
@@ -2425,7 +2450,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function dayOfWeek($day = null, $month = null, $year = null)
+    static function dayOfWeek($day = null, $month = null, $year = null)
     {
         if (is_null($year)) {
             $year = Date_Calc::dateNow('%Y');
@@ -2479,7 +2504,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function weekOfYearAbsolute($pn_day = 0, $pn_month = 0, $pn_year = null)
+    static function weekOfYearAbsolute($pn_day = 0, $pn_month = 0, $pn_year = null)
     {
         if (is_null($pn_year)) {
             $pn_year = Date_Calc::dateNow('%Y');
@@ -2532,7 +2557,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function weekOfYear1st($pn_day = 0,
+    static function weekOfYear1st($pn_day = 0,
                            $pn_month = 0,
                            $pn_year = null,
                            $pn_firstdayofweek = DATE_CALC_BEGIN_WEEKDAY)
@@ -2576,7 +2601,7 @@ class Date_Calc
      * @see        Date_Calc::weekOfYear7th
      * @deprecated Method deprecated in Release 1.5.0
      */
-    function weekOfYear($pn_day = 0, $pn_month = 0, $pn_year = null)
+    static function weekOfYear($pn_day = 0, $pn_month = 0, $pn_year = null)
     {
         $ha_week = Date_Calc::weekOfYear7th($pn_day, $pn_month, $pn_year, 0);
         return $ha_week[1];
@@ -2601,7 +2626,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function weekOfMonthAbsolute($pn_day = 0)
+    static function weekOfMonthAbsolute($pn_day = 0)
     {
         if (empty($pn_day)) {
             $pn_day = Date_Calc::dateNow('%d');
@@ -2644,7 +2669,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function quarterOfYear($day = 0, $month = 0, $year = null)
+    static function quarterOfYear($day = 0, $month = 0, $year = null)
     {
         if (empty($month)) {
             $month = Date_Calc::dateNow('%m');
@@ -2667,7 +2692,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function daysInMonth($month = 0, $year = null)
+    static function daysInMonth($month = 0, $year = null)
     {
         if (is_null($year)) {
             $year = Date_Calc::dateNow('%Y');
@@ -2695,7 +2720,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function daysInYear($year = null)
+    static function daysInYear($year = null)
     {
         if (is_null($year)) {
             $year = Date_Calc::dateNow('%Y');
@@ -2723,7 +2748,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function weeksInMonth($month = 0, $year = null)
+    static function weeksInMonth($month = 0, $year = null)
     {
         if (is_null($year)) {
             $year = Date_Calc::dateNow('%Y');
@@ -2764,7 +2789,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function getCalendarWeek($day = 0, $month = 0, $year = null,
+    static function getCalendarWeek($day = 0, $month = 0, $year = null,
                              $format = DATE_CALC_FORMAT)
     {
         if (is_null($year)) {
@@ -2806,7 +2831,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function getCalendarMonth($month = 0, $year = null,
+    static function getCalendarMonth($month = 0, $year = null,
                               $format = DATE_CALC_FORMAT)
     {
         if (is_null($year)) {
@@ -2895,7 +2920,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function prevDay($day = 0, $month = 0, $year = null,
+    static function prevDay($day = 0, $month = 0, $year = null,
                      $format = DATE_CALC_FORMAT)
     {
         if (is_null($year)) {
@@ -2928,7 +2953,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function nextDay($day = 0,
+    static function nextDay($day = 0,
                      $month = 0,
                      $year = null,
                      $format = DATE_CALC_FORMAT)
@@ -3273,7 +3298,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function beginOfWeek($day = 0, $month = 0, $year = null,
+    static function beginOfWeek($day = 0, $month = 0, $year = null,
                          $format = DATE_CALC_FORMAT)
     {
         if (is_null($year)) {
@@ -3312,7 +3337,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function endOfWeek($day = 0, $month = 0, $year = null,
+    static function endOfWeek($day = 0, $month = 0, $year = null,
                        $format = DATE_CALC_FORMAT)
     {
         if (is_null($year)) {
@@ -3351,7 +3376,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function beginOfPrevWeek($day = 0, $month = 0, $year = null,
+    static function beginOfPrevWeek($day = 0, $month = 0, $year = null,
                              $format = DATE_CALC_FORMAT)
     {
         if (is_null($year)) {
@@ -3395,7 +3420,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function beginOfNextWeek($day = 0, $month = 0, $year = null,
+    static function beginOfNextWeek($day = 0, $month = 0, $year = null,
                              $format = DATE_CALC_FORMAT)
     {
         if (is_null($year)) {
@@ -3505,7 +3530,7 @@ class Date_Calc
      * @see        Date_Calc::beginOfMonthBySpan()
      * @deprecated Method deprecated in Release 1.4.4
      */
-    function beginOfPrevMonth($dummy = null,
+    static function beginOfPrevMonth($dummy = null,
                               $month = 0,
                               $year = null,
                               $format = DATE_CALC_FORMAT)
@@ -3580,7 +3605,7 @@ class Date_Calc
      * @see        Date_Calc::beginOfMonthBySpan()
      * @deprecated Method deprecated in Release 1.4.4
      */
-    function beginOfNextMonth($dummy = null,
+    static function beginOfNextMonth($dummy = null,
                               $month = 0,
                               $year = null,
                               $format = DATE_CALC_FORMAT)
@@ -3659,7 +3684,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.4.4
      */
-    function beginOfMonthBySpan($months = 0,
+    static function beginOfMonthBySpan($months = 0,
                                 $month = 0,
                                 $year = null,
                                 $format = DATE_CALC_FORMAT)
@@ -3732,7 +3757,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function firstOfMonthWeekday($month = 0, $year = null)
+    static function firstOfMonthWeekday($month = 0, $year = null)
     {
         if (is_null($year)) {
             $year = Date_Calc::dateNow('%Y');
@@ -3811,7 +3836,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function isValidDate($day, $month, $year)
+    static function isValidDate($day, $month, $year)
     {
         if ($day < 1 || $month < 1 || $month > 12)
             return false;
@@ -3847,7 +3872,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function isLeapYearGregorian($year = null)
+    static function isLeapYearGregorian($year = null)
     {
         if (is_null($year)) {
             $year = Date_Calc::dateNow('%Y');
@@ -4005,7 +4030,7 @@ class Date_Calc
      * @access   public
      * @static
      */
-    function dateDiff($day1, $month1, $year1, $day2, $month2, $year2)
+    static function dateDiff($day1, $month1, $year1, $day2, $month2, $year2)
     {
         if (!Date_Calc::isValidDate($day1, $month1, $year1)) {
             return -1;
@@ -4102,7 +4127,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function round($pn_precision,
+    static function round($pn_precision,
                    $pn_day,
                    $pn_month,
                    $pn_year,
@@ -4326,7 +4351,7 @@ class Date_Calc
      * @static
      * @since    Method available since Release 1.5.0
      */
-    function roundSeconds($pn_precision,
+    static function roundSeconds($pn_precision,
                           $pn_day,
                           $pn_month,
                           $pn_year,

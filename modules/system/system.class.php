@@ -12,6 +12,7 @@ class CPreferences {
 	var $pref_value = NULL;
 	
 	var $_default_prefs = NULL;
+	var $_module_directory = NULL;
 	
 	function __construct() {
 		$this->_module_directory = 'system';
@@ -77,6 +78,7 @@ class CModule extends CDpObject {
 	var $mod_version=null;
 	var $mod_setup_class=null;
 	var $mod_type=null;
+	var $mod_admin = 0;
 	var $mod_active=null;
 	var $mod_ui_name=null;
 	var $mod_ui_icon=null;

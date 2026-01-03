@@ -416,8 +416,9 @@ class Date_TimeZone
      *
      * @return   object     Date_TimeZone object of the default time zone
      * @access   public
+     * @static
      */
-    function getDefault()
+    static function getDefault()
     {
         return new Date_TimeZone($GLOBALS['_DATE_TIMEZONE_DEFAULT']);
     }
@@ -494,9 +495,10 @@ class Date_TimeZone
      *
      * @return   bool       true if the supplied ID is valid
      * @access   public
+     * @static
      * @see      Date::setTZByID(), Date_TimeZone::Date_TimeZone()
      */
-    function isValidID($ps_id)
+    static function isValidID($ps_id)
     {
         if (isset($GLOBALS['_DATE_TIMEZONE_DATA'][$ps_id])) {
             return true;
@@ -558,7 +560,7 @@ class Date_TimeZone
      */
     function isEquivalent($pm_tz)
     {
-        if (is_a($pm_tz, "Date_TimeZone")) {
+        if ($pm_tz instanceof Date_TimeZone) {
             if ($pm_tz->getID() == $this->id) {
                 return true;
             }
@@ -642,17 +644,19 @@ class Date_TimeZone
                                               "Fri" => 5,
                                               "Sat" => 6);
 
+            $oDateCalc = new Date_Calc();
+
             if (preg_match('/^last(Sun|Mon|Tue|Wed|Thu|Fri|Sat)$/',
                            $ps_summertimelimitcode,
                            $ha_matches)) {
                 list($hn_nmyear, $hn_nextmonth, $hn_nmday) =
-                    explode(" ", Date_Calc::beginOfMonthBySpan(1,
+                    explode(" ", $oDateCalc->beginOfMonthBySpan(1,
                                                                $pn_month,
                                                                $pn_year,
                                                                "%Y %m %d"));
                 list($hn_year, $hn_month, $hn_day) =
                     explode(" ",
-                            Date_Calc::prevDayOfWeek($ha_daysofweek[$ha_matches[1]],
+                            $oDateCalc->prevDayOfWeek($ha_daysofweek[$ha_matches[1]],
                                                      $hn_nmday,
                                                      $hn_nextmonth, 
                                                      $hn_nmyear,
@@ -664,7 +668,7 @@ class Date_TimeZone
                     // This code happen legitimately if the calendar jumped some days
                     // e.g. in a calendar switch, or the limit day is badly defined:
                     //
-                    $hn_day = Date_Calc::getFirstDayOfMonth($pn_month, $pn_year);
+                    $hn_day = $oDateCalc->getFirstDayOfMonth($pn_month, $pn_year);
                 }
             } else if (preg_match('/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)([><]=)([0-9]+)$/',
                                   $ps_summertimelimitcode,
@@ -672,7 +676,7 @@ class Date_TimeZone
                 if ($ha_matches[2] == "<=") {
                     list($hn_year, $hn_month, $hn_day) =
                         explode(" ",
-                                Date_Calc::prevDayOfWeek($ha_daysofweek[$ha_matches[1]],
+                                $oDateCalc->prevDayOfWeek($ha_daysofweek[$ha_matches[1]],
                                                          $ha_matches[3],
                                                          $pn_month,
                                                          $pn_year,
@@ -681,12 +685,12 @@ class Date_TimeZone
                                                                  // this day
 
                     if ($hn_month != $pn_month) {
-                        $hn_day = Date_Calc::getFirstDayOfMonth($pn_month, $pn_year);
+                        $hn_day = $oDateCalc->getFirstDayOfMonth($pn_month, $pn_year);
                     }
                 } else {
                     list($hn_year, $hn_month, $hn_day) =
                         explode(" ",
-                                Date_Calc::nextDayOfWeek($ha_daysofweek[$ha_matches[1]],
+                                $oDateCalc->nextDayOfWeek($ha_daysofweek[$ha_matches[1]],
                                                          $ha_matches[3],
                                                          $pn_month,
                                                          $pn_year,
@@ -695,7 +699,7 @@ class Date_TimeZone
                                                                  // this day
 
                     if ($hn_month != $pn_month) {
-                        $hn_day = Date_Calc::daysInMonth($pn_month, $pn_year);
+                        $hn_day = $oDateCalc->daysInMonth($pn_month, $pn_year);
                     }
                 }
             }
@@ -742,7 +746,7 @@ class Date_TimeZone
             return false;
         }
 
-        if (is_a($pm_date, "Date")) {
+        if ($pm_date instanceof Date) {
             $hn_day     = $pm_date->getDay();
             $hn_month   = $pm_date->getMonth();
             $hn_year    = $pm_date->getYear();
@@ -851,7 +855,7 @@ class Date_TimeZone
             return false;
         }
 
-        if (is_a($pm_date, "Date")) {
+        if ($pm_date instanceof Date) {
             $hn_day     = $pm_date->getDay();
             $hn_month   = $pm_date->getMonth();
             $hn_year    = $pm_date->getYear();
@@ -996,7 +1000,7 @@ class Date_TimeZone
     function getOffset($pm_insummertime)
     {
         if ($this->hasdst) {
-            if (is_a($pm_insummertime, "Date")) {
+            if ($pm_insummertime instanceof Date) {
                 $hb_insummertime = $pm_insummertime->inDaylightTime();
                 if (PEAR::isError($hb_insummertime))
                     return $hb_insummertime;
@@ -1067,7 +1071,7 @@ class Date_TimeZone
     function getLongName($pm_insummertime = false)
     {
         if ($this->hasdst) {
-            if (is_a($pm_insummertime, "Date")) {
+            if ($pm_insummertime instanceof Date) {
                 $hb_insummertime = $pm_insummertime->inDaylightTime();
                 if (PEAR::isError($hb_insummertime))
                     return $hb_insummertime;
@@ -1107,7 +1111,7 @@ class Date_TimeZone
     function getShortName($pm_insummertime = false)
     {
         if ($this->hasdst) {
-            if (is_a($pm_insummertime, "Date")) {
+            if ($pm_insummertime instanceof Date) {
                 $hb_insummertime = $pm_insummertime->inDaylightTime();
                 if (PEAR::isError($hb_insummertime))
                     return $hb_insummertime;
@@ -7216,24 +7220,35 @@ $GLOBALS['_DATE_TIMEZONE_DATA'] = array(
  * _DATE_TIMEZONE_DEFAULT global, then PHP_TZ environment variable, then TZ
  * environment variable.
  */
-if (isset($GLOBALS['_DATE_TIMEZONE_DEFAULT'])
-   && Date_TimeZone::isValidID($GLOBALS['_DATE_TIMEZONE_DEFAULT'])) {
-    Date_TimeZone::setDefault($GLOBALS['_DATE_TIMEZONE_DEFAULT']);
+if (isset($GLOBALS['_DATE_TIMEZONE_DEFAULT'])) {
+    $tz = new Date_TimeZone();
+    if (Date_TimeZone::isValidID($GLOBALS['_DATE_TIMEZONE_DEFAULT'])) {
+        $tz->setDefault($GLOBALS['_DATE_TIMEZONE_DEFAULT']);
+    }
 } else if (function_exists('version_compare') &&
-           version_compare(phpversion(), "5.1.0", ">=") &&
-           (Date_TimeZone::isValidID($ps_id = ini_get("date.timezone")) ||
-            Date_TimeZone::isValidID($ps_id = date("e"))
-            )
-           ) {
-    Date_TimeZone::setDefault($ps_id);
-} else if (getenv('PHP_TZ') && Date_TimeZone::isValidID(getenv('PHP_TZ'))) {
-    Date_TimeZone::setDefault(getenv('PHP_TZ'));
-} else if (getenv('TZ') && Date_TimeZone::isValidID(getenv('TZ'))) {
-    Date_TimeZone::setDefault(getenv('TZ'));
-} else if (Date_TimeZone::isValidID(date('T'))) {
-    Date_TimeZone::setDefault(date('T'));
+           version_compare(phpversion(), "5.1.0", ">=")) {
+    $tz = new Date_TimeZone();
+    $ps_id = ini_get("date.timezone");
+    if (Date_TimeZone::isValidID($ps_id) || Date_TimeZone::isValidID($ps_id = date("e"))) {
+        $tz->setDefault($ps_id);
+    }
+} else if (getenv('PHP_TZ')) {
+    $tz = new Date_TimeZone();
+    if (Date_TimeZone::isValidID(getenv('PHP_TZ'))) {
+        $tz->setDefault(getenv('PHP_TZ'));
+    }
+} else if (getenv('TZ')) {
+    $tz = new Date_TimeZone();
+    if (Date_TimeZone::isValidID(getenv('TZ'))) {
+        $tz->setDefault(getenv('TZ'));
+    }
 } else {
-    Date_TimeZone::setDefault('UTC');
+    $tz = new Date_TimeZone();
+    if (Date_TimeZone::isValidID(date('T'))) {
+        $tz->setDefault(date('T'));
+    } else {
+        $tz->setDefault('UTC');
+    }
 }
 
 /*

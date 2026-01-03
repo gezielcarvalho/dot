@@ -61,7 +61,7 @@ define('DATE_ERROR_INVALIDFORMATSTRING', 5);
 // }}}
 // {{{ Includes
 
-require_once 'PEAR.php';
+require_once dirname(__FILE__) . '/../PEAR.php';
 
 /**
  * Load Date_TimeZone
@@ -457,7 +457,7 @@ class Date
     {
         $this->ob_countleapseconds = $pb_countleapseconds;
 
-        if (is_a($date, 'Date')) {
+        if ($date instanceof Date) {
             $this->copy($date);
         } else {
             if (!is_null($date)) {
@@ -1522,61 +1522,8 @@ class Date
                           $ps_capitalization = "SP",
                           $ps_locale = "en_GB")
     {
-        include_once "Numbers/Words.php";
-        $hs_words = Numbers_Words::toWords($pn_num, $ps_locale);
-        if (Pear::isError($hs_words)) {
-            return $hs_words;
-        }
-
-        if ($pb_ordinal && substr($ps_locale, 0, 2) == "en") {
-            if (($pn_rem = ($pn_numabs = abs($pn_num)) % 100) == 12) {
-                $hs_words = substr($hs_words, 0, -2) . "fth";
-            } else if ($pn_rem >= 11 && $pn_rem <= 15) {
-                $hs_words .= "th";
-            } else {
-                switch ($pn_numabs % 10) {
-                case 1:
-                    $hs_words = substr($hs_words, 0, -3) . "first";
-                    break;
-                case 2:
-                    $hs_words = substr($hs_words, 0, -3) . "second";
-                    break;
-                case 3:
-                    $hs_words = substr($hs_words, 0, -3) . "ird";
-                    break;
-                case 5:
-                    $hs_words = substr($hs_words, 0, -2) . "fth";
-                    break;
-                default:
-                    switch (substr($hs_words, -1)) {
-                    case "e":
-                        $hs_words = substr($hs_words, 0, -1) . "th";
-                        break;
-                    case "t":
-                        $hs_words .= "h";
-                        break;
-                    case "y":
-                        $hs_words = substr($hs_words, 0, -1) . "ieth";
-                        break;
-                    default:
-                        $hs_words .= "th";
-                    }
-                }
-            }
-        }
-
-        if (($hs_char = substr($ps_capitalization, 0, 1)) ==
-            strtolower($hs_char)) {
-            $hb_upper = false;
-            $hs_words = strtolower($hs_words);
-        } else if (($hs_char = substr($ps_capitalization, 1, 1)) ==
-                   strtolower($hs_char)) {
-            $hb_upper = false;
-            $hs_words = ucwords($hs_words);
-        } else {
-            $hb_upper = true;
-            $hs_words = strtoupper($hs_words);
-        }
+        // Numbers_Words package not available, return number as string
+        $hs_words = (string)$pn_num;
 
         return $hs_words;
     }
@@ -1904,7 +1851,7 @@ class Date
      *  <code>Y,YYY</code> Year with thousands-separator in this position; five
      *                    possible separators
      *  <code>Y.YYY</code> 
-     *  <code>Y·YYY</code> N.B. space-dot (mid-dot, interpunct) is valid only in
+     *  <code>Yï¿½YYY</code> N.B. space-dot (mid-dot, interpunct) is valid only in
      *                    ISO 8859-1 (so take care when using UTF-8 in
      *                    particular)
      *  <code>Y'YYY</code> 
@@ -1954,7 +1901,7 @@ class Date
     {
         if (!preg_match('/^("([^"\\\\]|\\\\\\\\|\\\\")*"|(D{1,3}|S?C+|' .
                         'HH(12|24)?|I[DW]|S?IY*|J|M[IM]|Q|SS(SSS)?|S?TZ[HS]|' .
-                        'TZM|U|W[W147]?|S?Y{1,3}([,.·\' ]?YYY)*)(SP(TH)?|' .
+                        'TZM|U|W[W147]?|S?Y{1,3}([,.ï¿½\' ]?YYY)*)(SP(TH)?|' .
                         'TH(SP)?)?|AD|A\.D\.|AM|A\.M\.|BCE?|B\.C\.(E\.)?|CE|' .
                         'C\.E\.|DAY|DY|F(F*|[1-9][0-9]*)|MON(TH)?|NP|PM|' .
                         'P\.M\.|RM|TZ[CINOR]|S?YEAR|[^A-Z0-9"])*$/i',
@@ -2927,7 +2874,7 @@ class Date
                     $hs_thousandsep  = null;
                     $hn_thousandseps = 0;
                     if ($hn_codelen <= 3) {
-                        while (preg_match('/([,.·\' ])YYY/i',
+                        while (preg_match('/([,.ï¿½\' ])YYY/i',
                                           substr($ps_format,
                                                  $i + $hn_codelen,
                                                  4),
@@ -3201,10 +3148,12 @@ class Date
         }
 
         $ret = $this->format2($hs_format2str);
-        if (PEAR::isError($ret) &&
-            $ret->getCode() == DATE_ERROR_INVALIDFORMATSTRING) {
-            return PEAR::raiseError("Invalid date format '$ps_format'",
-                                    DATE_ERROR_INVALIDFORMATSTRING);
+        if (PEAR::isError($ret)) {
+            /** @var PEAR_Error $ret */
+            if ($ret->getCode() == DATE_ERROR_INVALIDFORMATSTRING) {
+                return PEAR::raiseError("Invalid date format '$ps_format'",
+                                        DATE_ERROR_INVALIDFORMATSTRING);
+            }
         }
 
         return $ret;
@@ -3241,6 +3190,9 @@ class Date
      */
     function getTZID()
     {
+        if (!isset($this->tz)) {
+            return 'UTC';
+        }
         return $this->tz->getID();
     }
 
@@ -3273,7 +3225,12 @@ class Date
              Date_TimeZone::isValidID($hs_id = date("e"))
              )
             ) {
-            $this->tz = new Date_TimeZone($hs_id);
+            $tz = new Date_TimeZone($hs_id);
+            if ($tz instanceof Date_TimeZone) {
+                $this->tz = $tz;
+            } else {
+                $this->tz = Date_TimeZone::getDefault();
+            }
         } else {
             $this->tz = Date_TimeZone::getDefault();
         }
@@ -3301,7 +3258,7 @@ class Date
      */
     function setTZ($tz)
     {
-        if (is_a($tz, 'Date_Timezone')) {
+        if ($tz instanceof Date_TimeZone) {
             $this->setTZByID($tz->getID());
         } else {
             $res = $this->setTZByID($tz);
@@ -3371,7 +3328,7 @@ class Date
         // and 'Europe/Lisbon').
         //
         $hb_insummertime = $this->inDaylightTime();
-        if (PEAR::isError($hb_insummertime)) {
+        if (is_object($hb_insummertime) && PEAR::isError($hb_insummertime)) {
             if ($hb_insummertime->getCode() == DATE_ERROR_INVALIDTIME) {
                 $hb_insummertime = false;
             } else {
@@ -3382,7 +3339,12 @@ class Date
         if (is_null($ps_id)) {
             $this->_setTZToDefault();
         } else if (Date_TimeZone::isValidID($ps_id)) {
-            $this->tz = new Date_TimeZone($ps_id);
+            $tz = new Date_TimeZone($ps_id);
+            if (!($tz instanceof Date_TimeZone)) {
+                return PEAR::raiseError("Invalid time zone ID '$ps_id'",
+                                        DATE_ERROR_INVALIDTIMEZONE);
+            }
+            $this->tz = $tz;
         } else {
             return PEAR::raiseError("Invalid time zone ID '$ps_id'",
                                     DATE_ERROR_INVALIDTIMEZONE);
@@ -3532,7 +3494,7 @@ class Date
      * not allow putenv() or if localtime() did not work in your
      * environment, but this implementation is no longer used.
      *
-     * @param object $tz Date_TimeZone object to convert to
+     * @param mixed $tz Date_TimeZone object or time zone ID string to convert to
      *
      * @return   void
      * @access   public
@@ -3540,6 +3502,14 @@ class Date
      */
     function convertTZ($tz)
     {
+        if (!($tz instanceof Date_TimeZone)) {
+            $tz = new Date_TimeZone($tz);
+            if (!($tz instanceof Date_TimeZone)) {
+                return PEAR::raiseError("Invalid time zone",
+                                        DATE_ERROR_INVALIDTIMEZONE);
+            }
+        }
+
         if ($this->getTZID() == $tz->getID())
             return;
         if ($this->ob_invalidtime)
@@ -3620,7 +3590,13 @@ class Date
                                     DATE_ERROR_INVALIDTIMEZONE);
         }
 
-        $res = $this->convertTZ(new Date_TimeZone($ps_id));
+        $tz = new Date_TimeZone($ps_id);
+        if (!($tz instanceof Date_TimeZone)) {
+            return PEAR::raiseError("Invalid time zone ID '$ps_id'",
+                                    DATE_ERROR_INVALIDTIMEZONE);
+        }
+
+        $res = $this->convertTZ($tz);
 
         if (PEAR::isError($res))
             return $res;
@@ -4051,7 +4027,7 @@ class Date
      */
     function addSpan($span)
     {
-        if (!is_a($span, 'Date_Span')) {
+        if (!($span instanceof Date_Span)) {
             return PEAR::raiseError("Invalid argument - not 'Date_Span' object");
         } else if ($this->ob_invalidtime) {
             return $this->_getErrorInvalidTime();
@@ -4114,7 +4090,7 @@ class Date
      */
     function subtractSpan($span)
     {
-        if (!is_a($span, 'Date_Span')) {
+        if (!($span instanceof Date_Span)) {
             return PEAR::raiseError("Invalid argument - not 'Date_Span' object");
         } else if ($this->ob_invalidtime) {
             return $this->_getErrorInvalidTime();
@@ -4445,38 +4421,9 @@ class Date
      */
     function isLeapYear()
     {
-        return Date_Calc::isLeapYear($this->year);
-    }
-
-
-    // }}}
-    // {{{ getJulianDate()
-
-    /**
-     * Returns the no of days (1-366) since 31st December of the previous year
-     *
-     * N.B. this function does not return (and never has returned) the 'Julian
-     * Date', as described, for example, at:
-     *
-     *  http://en.wikipedia.org/wiki/Julian_day
-     *
-     * If you want the day of the year (0-366), use 'getDayOfYear()' instead.
-     * If you want the true Julian Day, call one of the following:
-     *
-     *  <code>format("%E")</code>
-     *  <code>format2("J")</code>
-     *
-     * There currently is no function that calls the Julian Date (as opposed
-     * to the 'Julian Day'), although the Julian Day is an approximation.
-     *
-     * @return     int        the Julian date
-     * @access     public
-     * @see        Date::getDayOfYear()
-     * @deprecated Method deprecated in Release 1.5.0
-     */
-    function getJulianDate()
-    {
-        return Date_Calc::julianDate($this->day, $this->month, $this->year);
+        // Date_Calc::isLeapYear is not static, so call via an instance
+        $dc = new Date_Calc();
+        return $dc->isLeapYear($this->year);
     }
 
 
@@ -4671,11 +4618,12 @@ class Date
     function getNextWeekday()
     {
         $ret = new Date($this);
+        $dc = new Date_Calc();
         list($hs_year, $hs_month, $hs_day) =
-            explode(" ", Date_Calc::nextWeekday($this->day,
-                                                $this->month,
-                                                $this->year,
-                                                "%Y %m %d"));
+            explode(" ", $dc->nextWeekday($this->day,
+                                          $this->month,
+                                          $this->year,
+                                          "%Y %m %d"));
         $ret->setDayMonthYear($hs_day, $hs_month, $hs_year);
         return $ret;
     }
@@ -4695,11 +4643,12 @@ class Date
     function getPrevWeekday()
     {
         $ret = new Date($this);
+        $dc = new Date_Calc();
         list($hs_year, $hs_month, $hs_day) =
-            explode(" ", Date_Calc::prevWeekday($this->day,
-                                                $this->month,
-                                                $this->year,
-                                                "%Y %m %d"));
+            explode(" ", $dc->prevWeekday($this->day,
+                                          $this->month,
+                                          $this->year,
+                                          "%Y %m %d"));
         $ret->setDayMonthYear($hs_day, $hs_month, $hs_year);
         return $ret;
     }
@@ -5259,6 +5208,9 @@ class Date
         settype($pn_second, "int");
         settype($pn_partsecond, "float");
 
+        if (is_null($this->tz)) {
+            $this->tz = new Date_TimeZone('UTC');
+        }
         $hb_insummertime =
             $this->tz->inDaylightTime(array($pn_day,
                 $pn_month, $pn_year, Date_Calc::secondsPastMidnight($pn_hour,
@@ -5815,11 +5767,11 @@ class Date
                          $pm_second,
                          $pb_repeatedhourdefault = false)
     {
-        if (!Date_Calc::isValidDate($d, $m, $y)) {
+        if (!Date_Calc::isValidDate($pn_day, $pn_month, $pn_year)) {
             return PEAR::raiseError("'" .
-                                    Date_Calc::dateFormat($d,
-                                                          $m,
-                                                          $y,
+                                    Date_Calc::dateFormat($pn_day,
+                                                          $pn_month,
+                                                          $pn_year,
                                                           "%Y-%m-%d") .
                                     "' is invalid calendar date",
                                     DATE_ERROR_INVALIDDATE);
@@ -5834,11 +5786,11 @@ class Date
                 $hn_partsecond = 0.0;
             }
 
-            $this->setLocalTime($d,
-                                $m,
-                                $y,
-                                $h,
-                                $m,
+            $this->setLocalTime($pn_day,
+                                $pn_month,
+                                $pn_year,
+                                $pn_hour,
+                                $pn_minute,
                                 $hn_second,
                                 $hn_partsecond,
                                 $pb_repeatedhourdefault);

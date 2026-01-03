@@ -11,15 +11,15 @@ $dialog = (int)dPgetParam($_GET, 'dialog', 0);
 <head>
 	<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
 	<meta name="Description" content="Classic dotProject Style" />
-	<meta name="Version" content="<?php echo @$AppUI->getVersion();?>" />
-        <meta http-equiv="Content-Type" content="text/html;charset=<?php 
+	<meta name="Version" content="<?php echo (isset($AppUI) && is_object($AppUI) && method_exists($AppUI, 'getVersion')) ? $AppUI->getVersion() : ''; ?>" />
+		<meta http-equiv="Content-Type" content="text/html;charset=<?php 
 echo (isset($locale_char_set) ? $locale_char_set : 'UTF-8'); ?>" />
       	<title><?php echo @dPgetConfig('page_title');?></title>
 	<link rel="stylesheet" href="./style/<?php 
 echo $uistyle; ?>/main.css" media="all" />
 	<style type="text/css" media="all">@import "./style/<?php echo $uistyle; ?>/main.css";</style>
 
-	<?php $AppUI->loadJS(); ?>
+	<?php if (isset($AppUI) && is_object($AppUI) && method_exists($AppUI, 'loadJS')) { $AppUI->loadJS(); } ?>
 	<script language="javascript" >
 	function doBtn(ev) {
 		var e = new CommonEvent(ev);
@@ -60,16 +60,15 @@ if (!$dialog) {
 		?></td>
 <?php if (!$dialog) { ?>
 	<td nowrap width="34%"><?php 
-echo ($AppUI->_('Current user') . ": $AppUI->user_first_name $AppUI->user_last_name"); ?></td>
+echo (isset($AppUI) && is_object($AppUI) ? ($AppUI->_('Current user') . ": " . $AppUI->user_first_name . " " . $AppUI->user_last_name) : ''); ?></td>
 	<td nowrap width="33%" align="right">
 	<table cellpadding="1" cellspacing="1" width="150">
 	<tr>
+<td class="topBtnOff" nowrap style="background-color: #cccccc" align="center">
+	<a href="./index.php?m=admin&amp;a=viewuser&amp;user_id=<?php echo (isset($AppUI) && is_object($AppUI) ? $AppUI->user_id : ''); ?>"><?php echo (isset($AppUI) && is_object($AppUI) ? $AppUI->_('My Info') : 'My Info'); ?></a>
+</td>
 		<td class="topBtnOff" nowrap style="background-color: #cccccc" align="center">
-			<a href="./index.php?m=admin&amp;a=viewuser&amp;user_id=<?php echo $AppUI->user_id;?>"><?php 
-echo $AppUI->_('My Info');?></a>
-		</td>
-		<td class="topBtnOff" nowrap style="background-color: #cccccc" align="center">
-			<a href="?logout=-1"><?php echo $AppUI->_('Logout');?></a>
+			<a href="?logout=-1"><?php echo (isset($AppUI) && is_object($AppUI) ? $AppUI->_('Logout') : 'Logout'); ?></a>
 		</td>
 		<td class="topBtnOff" nowrap style="background-color: #cccccc" align="center"><?php 
 echo dPcontextHelp('Help');?>
@@ -123,7 +122,7 @@ echo dPcontextHelp('Help');?>
 			<td rowspan="100"><img src="images/shim.gif" width="10" height="100" alt="" /></td>
 		</tr>
 	<?php
-		$nav = $AppUI->getMenuModules();
+		$nav = (isset($AppUI) && is_object($AppUI)) ? $AppUI->getMenuModules() : array();
 		$s = '';
 		foreach ($nav as $module) {
 			if (getPermission($module['mod_directory'], 'access')) {
@@ -133,7 +132,7 @@ echo dPcontextHelp('Help');?>
 					   . '<img src="' 
 					   . dPfindImage($module['mod_ui_icon'], $module['mod_directory']) 
 					   . '" alt="" border="0" width="30" height="30" /></td></tr></table>' 
-					   . $AppUI->_($module['mod_ui_name']) ."</a></td></tr>\n");
+					   . (isset($AppUI) && is_object($AppUI) ? $AppUI->_($module['mod_ui_name']) : $module['mod_ui_name']) ."</a></td></tr>\n");
 			}
 		}
 		echo $s;
@@ -146,5 +145,5 @@ echo dPcontextHelp('Help');?>
 	</td>
 <td valign="top" align="left" width="100%">
 <?php 
-	echo $AppUI->getMsg();
+	echo $AppUI ? $AppUI->getMsg() : '';
 ?>
