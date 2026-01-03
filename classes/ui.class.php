@@ -1436,7 +1436,7 @@ class CTitleBlock_core {
 		$s .= "\n</tr>";
 		$s .= "\n</table>";
 
-		if (count($this->crumbs) || (is_array($this->cells2) && count($this->cells2))) {
+		if ((is_array($this->crumbs) && count($this->crumbs)) || (is_array($this->cells2) && count($this->cells2))) {
 			$crumbs = array();
 			foreach ($this->crumbs as $k => $v) {
 				$t = (($v[1]) ? ('<img src="' . dPfindImage($v[1], $this->module) 
