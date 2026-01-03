@@ -84,6 +84,27 @@ if (!db_loadObject($sql, $obj)) {
 	$AppUI->savePlace();
 }
 
+// Static analysis: ensure $obj is an object after successful load
+/**
+ * @var object{
+ *   company_name?: string|null,
+ *   company_name_internal?: string|null,
+ *   project_start_date?: int|string|null,
+ *   project_end_date?: int|string|null,
+ *   project_color_identifier?: string|null,
+ *   project_name?: string|null,
+ *   project_company?: int|null,
+ *   project_company_internal?: int|null,
+ *   project_short_name?: string|null,
+ *   project_target_budget?: float|int|string|null,
+ *   user_name?: string|null,
+ *   project_description?: string|null,
+ *   project_percent_complete?: float|int|null,
+ *   project_status?: int|null,
+ *   project_priority?: int|null,
+ *   project_type?: int|null
+ * } $obj
+ */
 
 //worked hours
 //now milestones are summed up, too, for consistence with the tasks duration sum
@@ -94,27 +115,27 @@ if ($hasTasks) {
     $q->addTable('tasks');
     $q->addQuery('ROUND(SUM(task_log_hours),2)');
     $q->addWhere('task_log_task = task_id AND task_project = ' . $project_id);
-    $sql = $q->prepare();
-    $q->clear();
-    $worked_hours = db_loadResult($sql);
-    $worked_hours = rtrim($worked_hours, '.');
+	$sql = $q->prepare();
+	$q->clear();
+	$worked_hours = db_loadResult($sql);
+	$worked_hours = rtrim((string)$worked_hours, '.');
     
     //total hours
     //same milestone comment as above, also applies to dynamic tasks
     $q->addTable('tasks');
     $q->addQuery('ROUND(SUM(task_duration),2)');
     $q->addWhere('task_duration_type = 24 AND task_dynamic != 1 AND task_project = ' . $project_id);
-    $sql = $q->prepare();
-    $q->clear();
-    $days = db_loadResult($sql);
+	$sql = $q->prepare();
+	$q->clear();
+	$days = (float)db_loadResult($sql);
     
     $q->addTable('tasks');
     $q->addQuery('ROUND(SUM(task_duration),2)');
     $q->addWhere('task_duration_type = 1 AND task_dynamic != 1 AND task_project = ' . $project_id);
-    $sql = $q->prepare();
-    $q->clear();
-    $hours = db_loadResult($sql);
-    $total_hours = $days * $dPconfig['daily_working_hours'] + $hours;
+	$sql = $q->prepare();
+	$q->clear();
+	$hours = (float)db_loadResult($sql);
+	$total_hours = ((float)$days * (float)$dPconfig['daily_working_hours']) + (float)$hours;
     
     $total_project_hours = 0;
     
@@ -134,9 +155,10 @@ if ($hasTasks) {
     $total_project_hours_sql = $q->prepare();
     $q->clear();
     
-    $total_project_hours = (db_loadResult($total_project_days_sql) 
-							* $dPconfig['daily_working_hours'] 
-							+ db_loadResult($total_project_hours_sql));
+	// Cast DB results and config to floats to ensure numeric calculation
+	$total_project_hours = ((float)db_loadResult($total_project_days_sql)
+							* (float)$dPconfig['daily_working_hours']
+							+ (float)db_loadResult($total_project_hours_sql));
     //due to the round above, we don't want to print decimals unless they really exist
     //$total_project_hours = rtrim($total_project_hours, '0');
 }
@@ -146,13 +168,21 @@ else { //no tasks in project so "fake" project data
 //get the prefered date format
 $df = $AppUI->getPref('SHDATEFORMAT');
 
-//create Date objects from the datetime fields
-$start_date = (intval($obj->project_start_date) ? new CDate($obj->project_start_date) : null);
-$end_date = (intval($obj->project_end_date) ? new CDate($obj->project_end_date) : null);
-$actual_end_date = (intval($criticalTasks[0]['task_end_date']) 
-                    ? new CDate($criticalTasks[0]['task_end_date']) : null);
-$style = ((($actual_end_date > $end_date) && !empty($end_date)) 
-          ? 'style="color:red; font-weight:bold"' : '');
+//create Date objects from the datetime fields (guard against null $obj)
+// Ensure $obj is an object before accessing properties to satisfy static analysis
+$start_date = (is_object($obj) && intval($obj->project_start_date)) ? new CDate($obj->project_start_date) : null;
+$end_date = (is_object($obj) && intval($obj->project_end_date)) ? new CDate($obj->project_end_date) : null;
+$actual_end_date = (is_array($criticalTasks) && !empty($criticalTasks[0]['task_end_date']))
+					? new CDate($criticalTasks[0]['task_end_date']) : null;
+// Only compare when both dates are valid CDate objects
+$style = (($actual_end_date && $end_date && ($actual_end_date > $end_date))
+		  ? 'style="color:red; font-weight:bold"' : '');
+
+// Ensure company name variables exist (avoid undefined variable warnings)
+$company_name = (is_object($obj) && property_exists($obj, 'company_name') && $obj->company_name !== null)
+    ? $obj->company_name : '';
+$company_name_internal = (is_object($obj) && property_exists($obj, 'company_name_internal') && $obj->company_name_internal !== null)
+    ? $obj->company_name_internal : '';
 
 //setup the title block
 $titleBlock = new CTitleBlock('View Project', 'applet3-48.png', $m, "$m.$a");
@@ -211,8 +241,8 @@ $titleBlock->show();
 if ($canEdit) {
 ?>
 function delIt() {
-	if (confirm("<?php 
-echo ($AppUI->_('doDelete', UI_OUTPUT_JS) . ' ' . $AppUI->_('Project', UI_OUTPUT_JS) . '?'); ?>")) {
+	var delMsg = <?php echo json_encode($AppUI->_('doDelete', UI_OUTPUT_JS) . ' ' . $AppUI->_('Project', UI_OUTPUT_JS) . '?'); ?>;
+	if (confirm(delMsg)) {
 		document.frmDelete.submit();
 	}
 }
@@ -241,22 +271,22 @@ echo ('<span style="color:' . bestColor($obj->project_color_identifier) . '; fon
 		<table cellspacing="1" cellpadding="2" border="0" width="100%">
 		<tr>
 			<td align="right" nowrap><?php echo $AppUI->_('Company'); ?>:</td>
-            <td class="hilite" width="100%"><?php 
+						<td class="hilite" width="100%"><?php 
 echo (((getPermission('companies', 'view', $obj->project_company)) 
-       ? ('<a href="?m=companies&amp;a=view&amp;company_id=' . $obj->project_company . '">') : '') 
-      . htmlspecialchars($obj->company_name, ENT_QUOTES) 
-	  . ((getPermission('companies', 'view', $obj->project_company)) ? '</a>' : '')); 
+			 ? ('<a href="?m=companies&amp;a=view&amp;company_id=' . $obj->project_company . '">') : '') 
+			. htmlspecialchars($company_name, ENT_QUOTES) 
+	. ((getPermission('companies', 'view', $obj->project_company)) ? '</a>' : '')); 
 ?></td>
 		</tr>
 		<tr>
 			<td align="right" nowrap><?php echo $AppUI->_('Internal Company'); ?>:</td>
-            <td class="hilite" width="100%"><?php 
-echo (((getPermission('companies', 'view', $obj->project_company_internal)) 
-       ? ('<a href="?m=companies&amp;a=view&amp;company_id=' . $obj->project_company_internal . '">') : '') 
-      . htmlspecialchars($obj->company_name_internal, ENT_QUOTES) 
-	  . ((getPermission('companies', 'view', $obj->project_company_internal)) 
-         ? '</a>' : '')); 
-?></td>
+			     <td class="hilite" width="100%"><?php 
+		echo (((getPermission('companies', 'view', $obj->project_company_internal)) 
+			? ('<a href="?m=companies&amp;a=view&amp;company_id=' . $obj->project_company_internal . '">') : '') 
+		      . htmlspecialchars($company_name_internal, ENT_QUOTES) 
+		  . ((getPermission('companies', 'view', $obj->project_company_internal)) 
+			  ? '</a>' : '')); 
+		?></td>
 		</tr>
 		<tr>
 			<td align="right" nowrap><?php echo $AppUI->_('Short Name'); ?>:</td>
@@ -275,10 +305,12 @@ echo htmlspecialchars(@$obj->project_short_name, ENT_QUOTES); ?></td>
 			<td align="right" nowrap><?php echo $AppUI->_('Actual End Date'); ?>:</td>
 			<td class="hilite"><?php 
 if ($project_id > 0) {
-	echo (($actual_end_date) 
-	      ? ('<a href="?m=tasks&amp;a=view&amp;task_id=' . $criticalTasks[0]['task_id'] . '">' 
-	         . '<span '. $style.'>'.$actual_end_date->format($df).'</span></a>') 
-	      : '-');
+	if ($actual_end_date && isset($criticalTasks[0]['task_id'])) {
+		echo ('<a href="?m=tasks&amp;a=view&amp;task_id=' . $criticalTasks[0]['task_id'] . '">' 
+			 . '<span '. $style.'>'.$actual_end_date->format($df).'</span></a>');
+	} else {
+		echo '-';
+	}
 } else {
 	echo $AppUI->_('Dynamically calculated');
 } 

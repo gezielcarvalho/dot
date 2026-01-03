@@ -1102,6 +1102,12 @@ class CTabBox_core {
 	 * @param string Optional javascript method to be used to execute tabs.
 	 *	Must support 2 arguments, currently active tab, new tab to activate.
 	 */
+	function __construct($baseHRef='', $baseInc='', $active=0, $javascript = null) {
+		// PHP5+ constructor
+		$this->CTabBox_core($baseHRef, $baseInc, $active, $javascript);
+	}
+
+	// Backwards compatible PHP4-style constructor retained for older code
 	function CTabBox_core($baseHRef='', $baseInc='', $active=0, $javascript = null) {
 		$baseHRef = str_replace('&amp;', '&', $baseHRef);
 		$baseHRef = htmlspecialchars($baseHRef);

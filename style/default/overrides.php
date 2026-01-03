@@ -18,6 +18,7 @@ class CTabBox extends CTabBox_core {
 		$uistyle = ($AppUI->getPref('UISTYLE') 
 		            ? $AppUI->getPref('UISTYLE') 
 		            : (($dPconfig['host_style']) ? $dPconfig['host_style'] : 'default'));
+		// (no debug)
 		reset($this->tabs);
 		$s = '';
 		
@@ -111,15 +112,19 @@ class CTabBox extends CTabBox_core {
 					if (is_file($incFile)) {
 						require $incFile;
 					} else {
-						// Try module-relative path as a fallback
-						$alt = DP_BASE_DIR . '/modules/' . (isset($m) ? $m : '') . '/' . $this->tabs[$this->active][0] . '.php';
-						if (is_file($alt)) {
-							require $alt;
-						} elseif (is_file($this->tabs[$this->active][0] . '.php')) {
-							// last resort: relative include
-							require $this->tabs[$this->active][0] . '.php';
+							// Derive module from baseInc when possible, otherwise fall back to $m
+							$baseModule = '';
+							if (!empty($this->baseInc) && preg_match('#/modules/([^/]+?)/?$#', $this->baseInc, $matches)) {
+								$baseModule = $matches[1];
+							}
+							$alt = DP_BASE_DIR . '/modules/' . ($baseModule ? $baseModule : (isset($m) ? $m : '')) . '/' . $this->tabs[$this->active][0] . '.php';
+							if (is_file($alt)) {
+								require $alt;
+							} elseif (is_file($this->tabs[$this->active][0] . '.php')) {
+								// last resort: relative include
+								require $this->tabs[$this->active][0] . '.php';
+							}
 						}
-					}
 				}
 			}
 			if ($js_tabs)
@@ -135,7 +140,11 @@ class CTabBox extends CTabBox_core {
 							if (is_file($incFileJs)) {
 								require $incFileJs;
 							} else {
-								$altJs = DP_BASE_DIR . '/modules/' . (isset($m) ? $m : '') . '/' . $v[0] . '.php';
+								$baseModuleJs = '';
+								if (!empty($this->baseInc) && preg_match('#/modules/([^/]+?)/?$#', $this->baseInc, $matchesJs)) {
+									$baseModuleJs = $matchesJs[1];
+								}
+								$altJs = DP_BASE_DIR . '/modules/' . ($baseModuleJs ? $baseModuleJs : (isset($m) ? $m : '')) . '/' . $v[0] . '.php';
 								if (is_file($altJs)) {
 									require $altJs;
 								} elseif (is_file($v[0] . '.php')) {

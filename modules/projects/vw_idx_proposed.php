@@ -154,13 +154,16 @@ echo htmlspecialchars($row['company_description'], ENT_QUOTES); ?>">
 ?>
 	</td>
 	<td width="100%">
-		<a href="?m=projects&amp;a=view&amp;project_id=<?php 
-echo htmlspecialchars($row['project_id']); ?>" <?php 
-if (!empty($row['project_description'])) { ?>onmouseover="return overlib('<?php 
-echo(htmlspecialchars(('<div><p>' . str_replace(array("\r\n", "\n", "\r"), '</p><p>', 
-                                                addslashes($row['project_description'])) 
-                       . '</p></div>'), ENT_QUOTES)); ?>', CAPTION, '<?php 
-echo($AppUI->_('Description')); ?>', CENTER);" onmouseout="nd();"<?php } ?>>
+<?php
+	$overlib_attr = '';
+	if (!empty($row['project_description'])) {
+		$desc = '<div><p>' . str_replace(array("\r\n", "\n", "\r"), '</p><p>', addslashes($row['project_description'])) . '</p></div>';
+		$desc = htmlspecialchars($desc, ENT_QUOTES);
+		$caption = htmlspecialchars($AppUI->_('Description'), ENT_QUOTES);
+		$overlib_attr = 'onmouseover="return overlib(\'' . $desc . '\', CAPTION, \'" . $caption . "\', CENTER);" onmouseout="nd();"';
+	}
+?>
+		<a href="?m=projects&amp;a=view&amp;project_id=<?php echo htmlspecialchars($row['project_id']); ?>" <?php echo $overlib_attr; ?>>
 		<?php echo (htmlspecialchars($row['project_name'], ENT_QUOTES)); ?>
 		</a>
 	</td>

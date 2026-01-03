@@ -101,6 +101,8 @@ require_once $AppUI->getModuleClass('projects');
 $project = new CProject;
 $allowedProjects = $project->getAllowedSQL($AppUI->user_id);
 
+// initialize where_list to avoid undefined variable warnings
+$where_list = '';
 if (count($allowedProjects)) {
 	$where_list = implode(' AND ', $allowedProjects);
 }
@@ -147,7 +149,7 @@ if ($canAccessTask) {
 	$prc2 = db_exec($psql2);
 	echo db_error();
 	while ($row2 = db_fetch_assoc($prc2)) {
-		if ($projects[$row2['project_id']]) {
+		if (isset($projects[$row2['project_id']])) {
 			array_push($projects[$row2['project_id']], $row2);
 		}
 	}
