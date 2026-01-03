@@ -31,15 +31,42 @@ $q->addQuery('con.contact_last_name');
 $q->addJoin('users', 'u', 'u.user_id = co.company_owner');
 $q->addJoin('contacts', 'con', 'u.user_contact = con.contact_id');
 $q->addWhere('co.company_id = '.$company_id);
-$sql = $q->prepare();
-$q->clear();
 
 $obj = new stdClass();
 $obj->company_id = 0;
-if (!db_loadObject($sql, $obj) && $company_id > 0) {
-	//$AppUI->setMsg('$qid =& $q->exec(); Company'); // What is this for?
-	$AppUI->setMsg('invalidID', UI_MSG_ERROR, true);
-	$AppUI->redirect();
+// initialize default properties to avoid undefined property warnings
+$obj->company_name = '';
+$obj->company_email = '';
+$obj->company_phone1 = '';
+$obj->company_phone2 = '';
+$obj->company_fax = '';
+$obj->company_address1 = '';
+$obj->company_address2 = '';
+$obj->company_city = '';
+$obj->company_state = '';
+$obj->company_zip = '';
+$obj->company_primary_url = '';
+$obj->company_owner = 0;
+$obj->company_type = '';
+$obj->company_description = '';
+if ($company_id > 0) {
+	// use associative fetch and bind so column names map to object properties
+	if (! $q->exec(ADODB_FETCH_ASSOC)) {
+		$AppUI->setMsg('invalidID', UI_MSG_ERROR, true);
+		$AppUI->redirect();
+	}
+	$hash = $q->fetchRow();
+	$q->clear();
+    
+	if (! $hash) {
+		$AppUI->setMsg('invalidID', UI_MSG_ERROR, true);
+		$AppUI->redirect();
+	}
+	// bind all fields from the hash into the object explicitly
+	foreach ($hash as $k => $v) {
+		// normalize nulls to empty string for form fields where appropriate
+		$obj->$k = ($v === null) ? '' : $v;
+	}
 }
 
 // collect all the users for the company owner list
