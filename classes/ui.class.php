@@ -1403,7 +1403,7 @@ class CTitleBlock_core {
 		}
 		$s .= ("\n" . '<td align="left" width="100%" nowrap="nowrap"><h1>' 
 		       . $AppUI->_($this->title) . '</h1></td>');
-		foreach ($this->cells1 as $c) {
+		foreach ((array)$this->cells1 as $c) {
 			$s .= "\n" . '<td align="right" nowrap="nowrap"' . ($c[0] ? (' '.$c[0]): '') . '>';
 			$s .= $c[2] ? "\n" . $c[2] : '';
 			$s .= $c[1] ? "\n\t" . $c[1] : '&nbsp;';
