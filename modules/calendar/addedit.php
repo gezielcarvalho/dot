@@ -6,11 +6,11 @@ if (!defined('DP_BASE_DIR')) {
 $event_id = intval(dPgetParam($_GET, 'event_id', 0));
 $is_clash = isset($_SESSION['event_is_clash']) ? $_SESSION['event_is_clash'] : false;
 
-// check permissions
-$canAuthor = getPermission('events', 'add', $event_id);
-$canEdit = getPermission('events', 'edit', $event_id);
+// check permissions (support legacy 'events' capability and 'calendar' capability)
+$canAuthor = getPermission('events', 'add', $event_id) || getPermission('calendar', 'add', $event_id);
+$canEdit = getPermission('events', 'edit', $event_id) || getPermission('calendar', 'edit', $event_id);
 if (!(($canEdit && $event_id) || ($canAuthor && !($event_id)))) {
-	$AppUI->redirect('m=public&a=access_denied');
+  	$AppUI->redirect('m=public&a=access_denied');
 }
 
 // get the passed timestamp (today if none)
@@ -107,6 +107,9 @@ if ($event_id || $is_clash) {
 }
 
 $inc = intval(dPgetConfig('cal_day_increment')) ? intval(dPgetConfig('cal_day_increment')) : 30;
+// initialize hour/minute defaults to avoid undefined variable notices
+$h = null;
+$min = 0;
 if (!$event_id && !$is_clash) {
 	$seldate = new CDate($date);
 	// If date is today, set start time to now + inc
@@ -120,13 +123,13 @@ if (!$event_id && !$is_clash) {
 			$h++;
 		}
 	}
-	if ($h && $h < dPgetConfig('cal_day_end')) {
+	if ($h !== null && $h < dPgetConfig('cal_day_end')) {
 		$seldate->setTime($h, $min, 0);
 	} else {
 		$seldate->setTime(dPgetConfig('cal_day_start'),0,0);
 	}
 		$obj->event_start_date = $seldate->format(FMT_TIMESTAMP);
-	if ($h && $h < dPgetConfig('cal_day_end')) {
+	if ($h !== null && $h < dPgetConfig('cal_day_end')) {
 		$seldate->addSeconds($inc * 60);
 	} else {
 		$seldate->setTime(dPgetConfig('cal_day_end'),0,0);
@@ -247,6 +250,7 @@ function removeUser() {
 
 <form name="editFrm" action="?m=calendar" method="post">
 	<input type="hidden" name="dosql" value="do_event_aed" />
+	<input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>" />
 	<input type="hidden" name="event_id" value="<?php echo $event_id;?>" />
 	<input type="hidden" name="event_project" value="0" />
 	<input type="hidden" name="event_assigned" value="" />

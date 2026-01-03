@@ -5,6 +5,9 @@ if (!defined('DP_BASE_DIR')) {
 
 $folder = intval(dPgetParam($_GET, 'folder', 0));
 $file_id = intval(dPgetParam($_GET, 'file_id', 0));
+if (!isset($file_id)) {
+	$file_id = 0;
+}
 $ci = dPgetParam($_GET, 'ci', 0) == 1 ? true : false;
 $preserve = $dPconfig['files_ci_preserve_attr'];
 
@@ -17,8 +20,10 @@ if (!($canEdit)) {
 $canAdmin = getPermission('system', 'edit');
 
 // add to allow for returning to other modules besides Files
-$referrerArray = parse_url($_SERVER['HTTP_REFERER']);
-$referrer = $referrerArray['query'] . $referrerArray['fragment'];
+$referrerArray = parse_url(isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '');
+$ref_query = (isset($referrerArray['query']) ? $referrerArray['query'] : '');
+$ref_fragment = (isset($referrerArray['fragment']) ? $referrerArray['fragment'] : '');
+$referrer = $ref_query . $ref_fragment;
 
 // load the companies class to retrieved denied companies
 require_once($AppUI->getModuleClass('companies'));
@@ -165,8 +170,9 @@ function setTask(key, val) {
 
 <form name="uploadFrm" action="?m=files" enctype="multipart/form-data" method="post">
 	<input type="hidden" name="dosql" value="do_file_aed" />
+	<input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>" />
 	<input type="hidden" name="del" value="0" />
-	<input type="hidden" name="file_id" value="<?php echo $file_id; ?>" />
+	<input type="hidden" name="file_id" value="<?php echo isset($file_id) ? (int)$file_id : 0; ?>" />
 	<input type="hidden" name="file_version_id" value="<?php echo $obj->file_version_id; ?>" />
 	<input type="hidden" name="redirect" value="<?php echo $referrer; ?>" />
 	<input type="hidden" name="file_helpdesk_item" value="<?php echo $file_helpdesk_item; ?>" />
@@ -306,7 +312,7 @@ function file_show_attr() {
 	
 	$str_out .= '<td align="left">';
       
-	if (!($file_id) || $ci || ($canAdmin && $obj->file_checkout == 'final')) {
+	if (!isset($file_id) || !$file_id || $ci || ($canAdmin && $obj->file_checkout == 'final')) {
 		$str_out .= ('<input type="hidden" name="file_checkout" value="" />' 
 		             . '<input type="hidden" name="file_co_reason" value="" />');
 	}
@@ -343,6 +349,9 @@ function file_show_attr() {
                               
 	//TODO: export helpdesk code if possible...
 	if ($file_helpdesk_item) {
+		/**
+		 * @var CHelpDeskItem|object{item_id:int,item_title:string} $hd_item
+		 */
 		$hd_item = new CHelpDeskItem();
 		$hd_item->load($file_helpdesk_item);
 		//Helpdesk Item
