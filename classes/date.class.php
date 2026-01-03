@@ -8,7 +8,8 @@ if (!defined('DP_BASE_DIR')) {
 }
 
 if (!defined('LOCALE_FIRST_DAY')) {
-	define('LOCALE_FIRST_DAY', 1);
+	// Default to Sunday as the first day of week for compatibility
+	define('LOCALE_FIRST_DAY', 0);
 }
 define('DATE_CALC_BEGIN_WEEKDAY', LOCALE_FIRST_DAY);
 
@@ -49,19 +50,52 @@ class CDate extends Date {
 
 	function CDate($date = null, $format = null)
 	{
-		// If no date provided, default to current date/time
+		$orig_date = $date;
+		// If no date provided, or a zero/empty DB date, default to current date/time
 		if ($date === null || $date === '') {
-			return parent::Date();
+			$date = null;
 		}
-		if ($format == null && !is_object($date) && strlen($date) == 12 && strpos($date, '-') === false && strpos($date, '/') === false) {
+		// Treat common SQL zero dates or numeric zero as 'now'
+		if (is_string($date)) {
+			$trim = trim($date);
+			if ($trim === '0000-00-00' || $trim === '0000-00-00 00:00:00' || preg_match('/^0+$/', $trim)) {
+				$date = null;
+			}
+		}
+		if (is_int($date) && $date === 0) {
+			$date = null;
+		}
+		if ($format == null && !is_object($date) && is_string($date) && strlen($date) == 12 && strpos($date, '-') === false && strpos($date, '/') === false) {
 			$date = $date.'00';
 		} else if ($format != null && !is_object($date)) {
 			$dateobj = new Date();
 			$dateobj->setDate($date, $format);
 			$date = $dateobj;
 		}
-		
-		return parent::Date($date);
+
+		// initialize via parent Date constructor implementation on this instance
+		$this->Date($date);
+		// attempt to collect year/month/day safely and log
+		$y = method_exists($this, 'getYear') ? $this->getYear() : (isset($this->year) ? $this->year : null);
+		$m = method_exists($this, 'getMonth') ? $this->getMonth() : (isset($this->month) ? $this->month : null);
+		$d = method_exists($this, 'getDay') ? $this->getDay() : (isset($this->day) ? $this->day : null);
+		$log = array(
+			'ts' => date('c'),
+			'caller' => (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''),
+			'orig' => $orig_date,
+			'resolved' => $date,
+			'year' => $y,
+			'month' => $m,
+			'day' => $d,
+		);
+		@file_put_contents(DP_BASE_DIR . '/tmp/date_debug.log', json_encode($log) . PHP_EOL, FILE_APPEND);
+		return;
+	}
+
+	// PHP5+ constructor wrapper
+	public function __construct($date = null, $format = null)
+	{
+		$this->CDate($date, $format);
 	}
 
 /**

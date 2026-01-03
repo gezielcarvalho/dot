@@ -109,6 +109,8 @@ class CMonthCalendar {
 	 function setDate($date=null) {
 		global $AppUI, $locale_char_set;
 		
+		// Log incoming date parameter for debugging
+		@file_put_contents(DP_BASE_DIR . '/tmp/date_debug.log', json_encode(array('ts'=>date('c'), 'file'=>'calendar.class.php::setDate', 'input'=>$date)) . PHP_EOL, FILE_APPEND);
 		$this->this_month = new CDate($date);
 		
 		$d = $this->this_month->getDay();

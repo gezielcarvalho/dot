@@ -107,8 +107,10 @@ echo dPshowImage(dPfindImage('prev.gif'), 16, 16, $AppUI->_('previous day')); ?>
 					</a>
 						</td>
 						<th width="100%">
-					<?php 
-echo ($AppUI->_($this_day->format('%A')) . ', ' . $this_day->format($df)); ?>
+						<?php 
+				// Log the this_day values for debugging
+				@file_put_contents(DP_BASE_DIR . '/tmp/date_debug.log', json_encode(array('ts'=>date('c'), 'file'=>'day_view.php::title', 'this_day_raw'=>isset($date)?$date:null, 'year'=>$this_day->getYear(), 'month'=>$this_day->getMonth(), 'day'=>$this_day->getDay())) . PHP_EOL, FILE_APPEND);
+				echo ($AppUI->_($this_day->format('%A')) . ', ' . $this_day->format($df)); ?>
 						</th>
 						<td>
 					<a href="<?php 
