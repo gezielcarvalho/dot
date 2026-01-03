@@ -988,21 +988,24 @@ class DBQuery {
 
 /**
  * Bind a hash to an object, optionally stripping slashes.
+ * Global helper: define only if not already defined (avoids redeclare).
  * @param array $hash The hash to bind
  * @param object $obj The object to bind to
  * @param bool $bindAll Whether to bind all fields or only existing properties
  * @param bool $strip Whether to strip slashes
  */
-function bindHashToObject($hash, &$obj, $bindAll = false, $strip = true) {
-	if (!is_array($hash) || !is_object($obj)) {
-		return;
-	}
-	foreach ($hash as $k => $v) {
-		if ($bindAll || property_exists($obj, $k)) {
-			if ($strip) {
-				$obj->$k = stripslashes($v);
-			} else {
-				$obj->$k = $v;
+if (!function_exists('bindHashToObject')) {
+	function bindHashToObject($hash, &$obj, $bindAll = false, $strip = true) {
+		if (!is_array($hash) || !is_object($obj)) {
+			return;
+		}
+		foreach ($hash as $k => $v) {
+			if ($bindAll || property_exists($obj, $k)) {
+				if ($strip) {
+					$obj->$k = stripslashes($v);
+				} else {
+					$obj->$k = $v;
+				}
 			}
 		}
 	}
