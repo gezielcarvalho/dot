@@ -842,6 +842,10 @@ class CAppUI {
 * Checks whether there is any user logged in.
 */
 	function doLogin() {
+		// Treat missing or null user_id as "not logged in" (needs login)
+		if (!isset($this->user_id) || $this->user_id === null) {
+			return true;
+		}
 		return ($this->user_id < 0) ? true : false;
 	}
 /**
@@ -908,7 +912,8 @@ class CAppUI {
 		if ($uid) {
 			$user_prefs = $this->flattenPrefs(array_filter($prefs, [ $this, 'isUserPref' ]));
 		}
-		$this->user_prefs = array_merge($this->system_prefs, $this->user_prefs, $user_prefs);
+		// Ensure $this->user_prefs is an array before merging (might be null when restored from session)
+		$this->user_prefs = array_merge($this->system_prefs, (array)$this->user_prefs, $user_prefs);
 	}
 
 // --- Module connectors

@@ -59,6 +59,45 @@ $suppressHeaders = (bool)dPgetParam($_GET, 'suppressHeaders', false);
 // manage the session variable(s)
 dPsessionStart(array('AppUI'));
 
+// Local debug: log session/cookie state when running on localhost to help diagnose
+if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
+	$dbg = array(
+		'time' => date('c'),
+		'remote_addr' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
+		'request_uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
+		'cookies' => $_COOKIE,
+		'session_id' => session_id(),
+		'session_exists' => array_key_exists('AppUI', 
+			isset($_SESSION) ? $_SESSION : array()),
+	);
+	// capture minimal AppUI info if available
+	if (isset($_SESSION['AppUI'])) {
+		$ai = $_SESSION['AppUI'];
+		if (is_object($ai) && isset($ai->user_id)) {
+			$dbg['appui_user_id'] = $ai->user_id;
+		}
+	}
+	@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode($dbg) . "\n", FILE_APPEND);
+}
+
+// Log doLogin evaluation and AppUI user_id for diagnosis
+if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
+	$doLoginVal = null;
+	if (isset($AppUI) && is_object($AppUI) && method_exists($AppUI, 'doLogin') && is_callable(array($AppUI, 'doLogin'))) {
+		try {
+			$doLoginVal = call_user_func(array($AppUI, 'doLogin'));
+		} catch (Throwable $e) {
+			$doLoginVal = null;
+		}
+	}
+	$dbg2 = array(
+		'time' => date('c'),
+		'doLogin' => $doLoginVal,
+		'appui_user_id' => (isset($AppUI) && is_object($AppUI)) ? $AppUI->user_id : null,
+	);
+	@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode($dbg2) . "\n", FILE_APPEND);
+}
+
 // CSRF protection for POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = dPgetParam($_POST, 'csrf_token', '');
@@ -85,6 +124,35 @@ if (!(isset($_SESSION['AppUI'])) || isset($_GET['logout'])) {
 	$_SESSION['AppUI'] = new CAppUI;
 }
 $AppUI =& $_SESSION['AppUI'];
+// Helper: safe check if AppUI is logged in (supports older/newer AppUI implementations)
+if (!function_exists('appui_is_logged_in')) {
+	function appui_is_logged_in($AppUI) {
+		if (!(isset($AppUI) && is_object($AppUI))) {
+			return false;
+		}
+		if (method_exists($AppUI, 'doLogin')) {
+			return (bool)$AppUI->doLogin();
+		}
+		// Fallback: consider user logged in if user_id is set and > 0
+		return (isset($AppUI->user_id) && $AppUI->user_id > 0);
+	}
+}
+// Debug: log AppUI state right after restoring from session
+if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
+	$dbg_appui = array(
+		'time' => date('c'),
+		'session_id' => session_id(),
+		'appui_is_object' => isset($AppUI) && is_object($AppUI),
+		'appui_user_id' => (isset($AppUI) && is_object($AppUI)) ? $AppUI->user_id : null,
+		'doLogin' => (isset($AppUI) && is_object($AppUI)) ? $AppUI->doLogin() : null,
+	);
+	@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode($dbg_appui) . "\n", FILE_APPEND);
+}
+
+// If restored AppUI has no user_id (null/missing) coerce to -1 so logic is consistent
+if (isset($AppUI) && is_object($AppUI) && (!isset($AppUI->user_id) || $AppUI->user_id === null)) {
+	$AppUI->user_id = -1;
+}
 $last_insert_id =$AppUI->last_insert_id;
 
 $AppUI->checkStyle();
@@ -98,7 +166,7 @@ require_once DP_BASE_DIR.'/misc/debug.php';
 //Function for update lost action in user_access_log
 $AppUI->updateLastAction($last_insert_id);
 // load default preferences if not logged in
-if ($AppUI->doLogin()) {
+if (appui_is_logged_in($AppUI)) {
 	$AppUI->loadPrefs(0);
 }
 
@@ -153,7 +221,7 @@ $a = '';
 $u = '';
 
 // check if we are logged in
-if ($AppUI->doLogin()) {
+if (appui_is_logged_in($AppUI)) {
 	// load basic locale settings
 	$AppUI->setUserLocale();
 	@include_once('./locales/' . $AppUI->user_locale . '/locales.php');
@@ -170,6 +238,10 @@ if ($AppUI->doLogin()) {
 
 	require (DP_BASE_DIR . '/style/' . $uistyle . '/login.php');
 	// destroy the current session and output login page
+	// Clear the session cookie so the browser doesn't keep sending the old session id
+	if (function_exists('dPclearSessionCookie')) {
+		dPclearSessionCookie();
+	}
 	session_unset();
 	session_destroy();
 	exit;

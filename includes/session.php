@@ -62,6 +62,17 @@ function dPsessionRead($id) {
 			$data = '';
 		} else {
 			$data = $qid->fields['session_data'];
+
+			// Debug: log retrieved session data length and presence of AppUI
+			if (defined('DP_BASE_DIR')) {
+				$info = array(
+					'time' => date('c'),
+					'read_session_id' => $id,
+					'data_length' => strlen($data),
+					'contains_AppUI' => (mb_strpos($data, 'AppUI') !== false),
+				);
+				@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode($info) . "\n", FILE_APPEND);
+			}
 		}
 	}
 	$q->clear();
@@ -226,7 +237,15 @@ function dpSessionStart($start_vars = 'AppUI') {
 	$domain = $url_parts[2];
 	$secure = ($url_parts[1] == 'https://');
 
-	session_set_cookie_params($max_time, $cookie_dir, $domain, $secure, true);
+	// Do not set a Domain attribute for localhost or bare IPs since some
+	// browsers reject cookies with Domain=localhost or Domain=127.0.0.1.
+	// Use a host-only cookie by passing an empty domain in those cases.
+	$cookie_domain = $domain;
+	if ($cookie_domain === 'localhost' || filter_var($cookie_domain, FILTER_VALIDATE_IP)) {
+		$cookie_domain = '';
+	}
+
+	session_set_cookie_params($max_time, $cookie_dir, $cookie_domain, $secure, true);
 	
 	if (is_array($start_vars)) {
 		foreach ($start_vars as $var) {
@@ -237,5 +256,40 @@ function dpSessionStart($start_vars = 'AppUI') {
 	}
 	
 	session_start();
+}
+
+/**
+ * Clear the session cookie in the browser.
+ */
+function dPclearSessionCookie()
+{
+	// derive cookie params the same way dpSessionStart does
+	preg_match('_^(https?://)([^/:]+)(:[0-9]+)?(/.*)?$_i', dPgetConfig('base_url'), $url_parts);
+	$cookie_dir = isset($url_parts[4]) ? $url_parts[4] : '/';
+	if (mb_substr($cookie_dir, 0, 1) != '/') {
+		$cookie_dir = '/' . $cookie_dir;
+	}
+	if (mb_substr($cookie_dir, -1) != '/') {
+		$cookie_dir .= '/';
+	}
+	$domain = $url_parts[2];
+	// host-only cookie for localhost/IP
+	if ($domain === 'localhost' || filter_var($domain, FILTER_VALIDATE_IP)) {
+		$domain = '';
+	}
+	// expire the cookie
+	if (PHP_VERSION_ID < 70300) {
+		setcookie(session_name(), '', time() - 42000, $cookie_dir, $domain);
+	} else {
+		// PHP 7.3+ supports 'samesite' via options array in setcookie
+		setcookie(session_name(), '', [
+			'expires' => time() - 42000,
+			'path' => $cookie_dir,
+			'domain' => $domain,
+			'secure' => (isset($url_parts[1]) && $url_parts[1] == 'https://'),
+			'httponly' => true,
+			'samesite' => 'Lax'
+		]);
+	}
 }
 
