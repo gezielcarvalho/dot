@@ -20,7 +20,8 @@ function fatal_error ($reason) {
 
 /* create read-only output of list values */
 function chooseSelectedValue ($name, $options, $selected) {
-	while (list($key, $val) = each($options)) {
+	$output = "";
+	foreach ($options as $key => $val) {
 			if ($key == $selected) {
 				$output = "$val\n";
 			}
@@ -35,7 +36,7 @@ function create_selectbox ($name, $options, $selected) {
 	$output= "";
 	$output .= '<select name="'.$name.'" onchange="javascript:document.ticketform.submit()" class="text">'."\n";
 
-	while (list($key, $val) = each($options)) {
+	foreach ($options as $key => $val) {
 		$output .= "<option value=\"$key\"";
 
 		if ($key == $selected) {
@@ -43,8 +44,9 @@ function create_selectbox ($name, $options, $selected) {
 		}
 
 		$output .= ">$val\n";
-		//$loop++;
 	}
+		//$loop++;
+	
 
 	$output .= "</select>\n";
 
@@ -53,19 +55,10 @@ function create_selectbox ($name, $options, $selected) {
 
 }
 
-/* escape special characters */
-function escape_string ($string) {
-    
-    if (!get_magic_quotes_gpc()) {
-        $string = addslashes($string);
-    }
-    return($string);
-
-}
-
 /* format "time ago" date string */
 function get_time_ago ($timestamp) {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 
     $elapsed_seconds = time() - $timestamp;
 
@@ -166,18 +159,18 @@ function smart_wrap ($text, $width) {
 function word_wrap ($string, $cols = 78, $quote_old = false, $prefix = ">", $nice_prefix = "> ") {
 
 if (preg_match("/^.*\r\n/", $string)) {
-	$t_lines = mb_split("\r\n", $string);
+	$t_lines = explode("\r\n", $string);
 } else if (preg_match("/^.*\n/", $string)) {
-	$t_lines = mb_split("\n", $string);
+	$t_lines = explode("\n", $string);
 } else {
-	$t_lines = mb_split("\r", $string);
+	$t_lines = explode("\r", $string);
 }
 
 $outlines = "";
 $leftover = "";
 
 // Loop through each line of message
-while (list(, $thisline) = each($t_lines)) {
+foreach ($t_lines as $thisline) {
 	// Process Leftover
 	if (mb_strlen($leftover) > 0) {
 		$counter = 0;
@@ -204,9 +197,9 @@ while (list(, $thisline) = each($t_lines)) {
 
 	if (mb_strlen($thisline) + mb_strlen($nice_prefix) > $cols) {
 		$newline = '';
-		$t_l_lines = mb_split(' ', $thisline);
+		$t_l_lines = explode(' ', $thisline);
 		// This line is too big.  Break it up into words and add them one by one.
-		while (list(, $thisword) = each($t_l_lines)) {
+		foreach ($t_l_lines as $thisword) {
 			// Process words that are longer than $cols
 			while ((mb_strlen($thisword) + mb_strlen($nice_prefix)) > $cols) {
 				$cur_pos = 0;
@@ -250,7 +243,10 @@ function format_field ($value, $type, $ticket = NULL) {
 
     global $CONFIG;
     global $AppUI;
+    /** @var CAppUI $AppUI */
     global $canEdit;
+
+    $output = ""; // Initialize output variable
 
     switch ($type) {
         case "user":
@@ -444,10 +440,12 @@ function format_field ($value, $type, $ticket = NULL) {
 			$q->addQuery('co.*');
 			$q->addWhere('co.company_id = '.(int)$value);
 			$sql = $q->prepare();
-			if (!db_loadObject($sql, $obj)) {
-				// it all dies!
+			$obj = null;
+			if (!db_loadObject($sql, $obj) || !$obj) {
+				$output = $AppUI->_('Company not found');
+			} else {
+				$output = '<a href="?m=companies&amp;a=view&amp;company_id='.$value.'">'.$obj->company_name.'</a>';
 			}
-			$output = '<a href="?m=companies&amp;a=view&amp;company_id='.$value.'">'.$obj->company_name.'</a>';
 			break;
 		case 'ticket_project':
 		    $q  = new DBQuery;
@@ -455,10 +453,12 @@ function format_field ($value, $type, $ticket = NULL) {
 			$q->addQuery('pr.*');
 			$q->addWhere('pr.project_id = '.$value);
 			$sql = $q->prepare();
-			if (!db_loadObject($sql, $obj)) {
-				// it all dies!
+			$obj = null;
+			if (!db_loadObject($sql, $obj) || !$obj) {
+				$output = $AppUI->_('Project not found');
+			} else {
+				$output = '<a href="?m=projects&amp;a=view&amp;project_id='.$value.'">'.$obj->project_name.'</a>';
 			}
-			$output = '<a href="?m=projects&amp;a=view&amp;project_id='.$value.'">'.$obj->project_name.'</a>';
 			break;
         default:
             $output = $value ? htmlspecialchars($value) : "<em>".$AppUI->_('none')."</em>";

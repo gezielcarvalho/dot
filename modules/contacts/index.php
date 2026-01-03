@@ -224,7 +224,7 @@ for ($z = 0; $z < $carrWidth; $z++) {
 			<td class="hilite">
 			<?php
 		reset($showfields);
-		while (list($key, $val) = each($showfields)) {
+		foreach ($showfields as $key => $val) {
 			if (mb_strlen($carr[$z][$x][$key]) > 0) {
 				if ($val == "contact_email") {
 					echo ('<a href="mailto:' . $carr[$z][$x][$key] . '" class="mailto">' 

@@ -14,6 +14,39 @@ if ($helpdesk_available = $AppUI->isActiveModule('helpdesk')) {
 	include_once $AppUI->getModuleClass('helpdesk');
 }
 
+// Stub class definition for CHelpDeskItem when helpdesk module is not available
+if (!class_exists('CHelpDeskItem')) {
+	/**
+	 * Stub class for CHelpDeskItem to satisfy static analysis
+	 * This class is only used when the helpdesk module is available
+	 */
+	class CHelpDeskItem {
+		public function load($id) {}
+		public function log_status($status, $name, $description) {}
+		public function notify($type, $log_id) {}
+	}
+}
+
+// Stub class definition for CHDTaskLog when helpdesk module is not available
+if (!class_exists('CHDTaskLog')) {
+	/**
+	 * Stub class for CHDTaskLog to satisfy static analysis
+	 * This class is only used when the helpdesk module is available
+	 */
+	class CHDTaskLog {
+		public $task_log_help_desk_id;
+		public $task_log_name;
+		public $task_log_description;
+		public $task_log_creator;
+		public $task_log_date;
+		public $task_log_id;
+		
+		public function store() {
+			return null;
+		}
+	}
+}
+
 /**
 * File Class
 */
@@ -39,9 +72,11 @@ class CFile extends CDpObject {
 	
 	var $_message = NULL;
 	
-	// This "breaks" check-in/upload if helpdesk is not present.
-	// class variable needs to be added "dymanically"
-	//var $file_helpdesk_item = NULL;
+	/** @var CHelpDeskItem|null Helpdesk item object */
+	var $_hditem = NULL;
+	
+	/** @var int|null Helpdesk item ID (dynamically added if helpdesk module is available) */
+	var $file_helpdesk_item = NULL;
 	
 	
 	function __construct() {
@@ -177,7 +212,7 @@ class CFile extends CDpObject {
 			$res = mkdir(DP_BASE_DIR . '/files/' . $this->file_project, 0777);
 			if (!$res) {
 				$AppUI->setMsg('Upload folder not setup to accept uploads' 
-				               . ' - change permission on files/ directory.', UI_MSG_ALLERT);
+				               . ' - change permission on files/ directory.', UI_MSG_ALERT);
 				return false;
 			}
 		}
@@ -194,7 +229,7 @@ class CFile extends CDpObject {
 			$res = mkdir(DP_BASE_DIR.'/files/0', 0777);
 			if (!$res) {
 				$AppUI->setMsg('Upload folder not setup to accept uploads.' 
-				               . ' Change permission on files/ directory.', UI_MSG_ALLERT);
+				               . ' Change permission on files/ directory.', UI_MSG_ALERT);
 				return false;
 			}
 		}
@@ -219,7 +254,7 @@ class CFile extends CDpObject {
 			$res = mkdir(DP_BASE_DIR.'/files/'.$this->file_project, 0777);
 			if (!$res) {
 				$AppUI->setMsg('Upload folder not setup to accept uploads' 
-				               . ' - change permission on files/ directory.', UI_MSG_ALLERT);
+				               . ' - change permission on files/ directory.', UI_MSG_ALERT);
 				return false;
 			}
 		}
@@ -265,7 +300,7 @@ class CFile extends CDpObject {
 		}
 		// remove punctuation and parse the strings
 		$x = str_replace(array('.', ',', '!', '@', '(', ')'), ' ', $x);
-		$warr = mb_split('[[:space:]]', $x);
+		$warr = preg_split('/\s+/', $x);
 		
 		$wordarr = array();
 		$nwords = count($warr);
@@ -284,7 +319,7 @@ class CFile extends CDpObject {
 			unset($wordarr[$w]);
 		}
 		// insert the strings into the table
-		while (list($key, $val) = each($wordarr)) {
+		foreach ($wordarr as $key => $val) {
 			$this->_query->clear();
 			$this->_query->addTable('files_index');
 			$this->_query->addReplace('file_id', $this->file_id);
@@ -295,7 +330,7 @@ class CFile extends CDpObject {
 		}
 		
 		db_exec('UNLOCK TABLES;');	//TODO: use DBQuery?  What about other sql engines?
-		return nwords;
+		return $nwords;
 	}
 	
 	//function notifies about file changing
@@ -657,7 +692,7 @@ function getIcon($file_type) {
 	if (is_file(DP_BASE_DIR . '/modules/files/images/icons/' . $icon . '.png')) {
 		$result = 'icons/' . $icon . '.png';
 	} else {
-		$mime = mb_split('/', $file_type);
+		$mime = explode('/', $file_type);
 		switch ($mime[0]) {
 		case 'audio' : 
 			$result = 'icons/wav.png';
@@ -690,10 +725,7 @@ function getIcon($file_type) {
 	}
 	
 	if ($result == '') {
-		switch ($obj->$file_category) {
-		default: // no idea what's going on
-			$result = 'icons/unknown.png';
-      	}
+		$result = 'icons/unknown.png';
 	}
 	return $result;      
 }

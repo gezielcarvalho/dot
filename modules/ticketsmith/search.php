@@ -114,7 +114,7 @@ if ($search_pattern) {
 
     /* form search query */
     $select_columns = join(", ", $fields["columns"]);
-    $search_pattern = "%" . escape_string($search_pattern) . "%";
+    $search_pattern = "%" . addslashes($search_pattern) . "%";
     $q = new DBQuery();
     $q->addQuery($fields['columns']);
     $q->addTable('tickets');

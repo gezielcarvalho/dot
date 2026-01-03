@@ -1,7 +1,11 @@
 <?php /* $Id$ */
-##
-## Session Handling Functions
-##
+/**
+ * Session Handling Functions
+ * @global CAppUI $AppUI
+ */
+
+/** @var CAppUI $AppUI */
+global $AppUI;
 /*
 * Please note that these functions assume that the database
 * is accessible and that a table called 'sessions' (with a prefix
@@ -66,6 +70,7 @@ function dPsessionRead($id) {
 
 function dPsessionWrite($id, $data) {
     global $AppUI;
+    /** @var CAppUI $AppUI */
     
 	$q = new DBQuery;
 	$q->addQuery('count(*) as row_count');
@@ -94,6 +99,7 @@ function dPsessionWrite($id, $data) {
 
 function dPsessionDestroy($id, $user_access_log_id=0) {
  	global $AppUI;
+ 	/** @var CAppUI $AppUI */
     
 	$q = new DBQuery;
     $q->addTable('sessions'); // Alias not required
@@ -120,6 +126,7 @@ function dPsessionDestroy($id, $user_access_log_id=0) {
 
 function dPsessionGC($maxlifetime) {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 	
 	dprint(__FILE__, __LINE__, 11, 'Session Garbage collection running');
 	$now = time();
@@ -151,6 +158,7 @@ function dPsessionGC($maxlifetime) {
 		// queue scanner.
 		if (! isset($AppUI)) {
 			$AppUI = new CAppUI;
+			/** @var CAppUI $AppUI */
 			$queue = EventQueue::getInstance();
 			$queue->scan();
 		}

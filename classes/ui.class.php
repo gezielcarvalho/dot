@@ -40,6 +40,10 @@ require_once DP_BASE_DIR.'/includes/filter.php';
 *
 * @author Andrew Eddie <eddieajau@users.sourceforge.net>
 * @version $Revision$
+* @method string _($str, $flags = 0) Translation function
+* @method string __($str, $flags = 0) Main translation function
+* @method string ___($str, $flags = 0) Output formatting function
+* @property int $last_insert_id Last insert ID for register log
 */
 class CAppUI {
 /** @var array generic array for holding the state of anything */
@@ -83,6 +87,9 @@ class CAppUI {
 /** @var string Default page for a redirect call*/
 	var $defaultRedirect = '';
 	
+/** @var int Current project ID */
+	var $project_id = null;
+	
 /** @var array Configuration variable array*/
 	var $cfg=null;
 	
@@ -99,7 +106,7 @@ class CAppUI {
 	var $version_string = null;
 	
 /** @var integer for register log ID */
-	var $last_insert_id = null;	
+	public $last_insert_id = null;	
 
 /** @var array list of external JS libraries */
 	var $_js = [];
@@ -979,7 +986,7 @@ class CAppUI {
 			}
 		}
 		asort($js_files);
-		while (list(,$js_file_name) = each($js_files)) {
+		foreach ($js_files as $js_file_name) {
 			echo ('<script  src="' . $base . 'js/' 
 				  . $this->___($js_file_name) . '"></script>'."\n");
 		}
@@ -1064,8 +1071,7 @@ class CTabBox_core {
 	var $baseHRef = null;
 	/** @var string The base path to prefix the include file */
 	var $baseInc;
-	/** @var string A javascript function that accepts two arguments,
-	 the active tab, and the selected tab **/
+	/** @var string A javascript function that accepts two arguments, the active tab, and the selected tab **/
 	var $javascript = null;
 
 	/**
@@ -1270,9 +1276,16 @@ class CTitleBlock_core {
 	var $icon='';
 	/** @var string The name of the module that this title block is displaying in */
 	var $module='';
-	/** @var array An array of the table 'cells' to the right of the title block 
-	 and for bread-crumbs */
+	/** @var array An array of the table 'cells' to the right of the title block and for bread-crumbs */
 	var $cells=null;
+	/** @var array An array of cells for the title block */
+	var $cells1=null;
+	/** @var array An array of cells for breadcrumbs */
+	var $cells2=null;
+	/** @var array An array of breadcrumb links */
+	var $crumbs=null;
+	/** @var boolean Whether to show help links */
+	var $showhelp=null;
 	/** @var string The reference for the context help system */
 	var $helpref='';
 	

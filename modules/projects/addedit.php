@@ -222,6 +222,7 @@ function setDepartment(department_id_string) {
 	<input type="hidden" name="dosql" value="do_project_aed" />
 	<input type="hidden" name="project_id" value="<?php echo $project_id;?>" />
 	<input type="hidden" name="project_creator" value="<?php echo $AppUI->user_id;?>" />
+	<input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>" />
 	<input name='project_contacts' type='hidden' value="<?php echo implode(',', $selected_contacts); ?>" />
 <table cellspacing="0" cellpadding="4" border="0" width="100%" class="std">
 <tr>

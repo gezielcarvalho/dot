@@ -59,6 +59,14 @@ $suppressHeaders = (bool)dPgetParam($_GET, 'suppressHeaders', false);
 // manage the session variable(s)
 dPsessionStart(array('AppUI'));
 
+// CSRF protection for POST requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token = dPgetParam($_POST, 'csrf_token', '');
+    if (!validateCSRFToken($token)) {
+        die('CSRF token validation failed.');
+    }
+}
+
 // write the HTML headers
 
 header ('Expires: Mon, 26 Jul 1997 05:00:00 GMT'); //Date in the past

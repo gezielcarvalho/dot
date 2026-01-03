@@ -1,4 +1,22 @@
 <?php /* INCLUDES $Id$ */
+/**
+ * Global General Purpose Functions
+ * @global CAppUI $AppUI
+ */
+
+/** @var CAppUI $AppUI */
+global $AppUI;
+
+// Tell Intelephense about money_format function
+if (false) {
+    /**
+     * Format a number as currency
+     * @param string $format
+     * @param float $number
+     * @return string
+     */
+    function money_format($format, $number) {}
+}
 ##
 ## Global General Purpose Functions
 ##
@@ -29,6 +47,7 @@ function bestColor($bg, $lt='#ffffff', $dk='#000000') {
 ##
 function arraySelect(&$arr, $select_name, $select_attribs, $selected, $translate=false) {
 	GLOBAL $AppUI;
+	/** @var CAppUI $AppUI */
 	if (! is_array($arr)) {
 		dprint(__FILE__, __LINE__, 0, 'arraySelect called with no array');
 		return '';
@@ -64,6 +83,7 @@ function arraySelect(&$arr, $select_name, $select_attribs, $selected, $translate
 ##
 function arraySelectTree(&$arr, $select_name, $select_attribs, $selected, $translate=false) {
 	GLOBAL $AppUI;
+	/** @var CAppUI $AppUI */
 	reset($arr);
 
 	$children = array();
@@ -108,6 +128,7 @@ function tree_recurse($id, $indent, $list, $children) {
 function projectSelectWithOptGroup($user_id, $select_name, $select_attribs, $selected, 
                                    $excludeProjWithId = null) {
 	global $AppUI ;
+	/** @var CAppUI $AppUI */
 	$q = new DBQuery();
 	$q->addTable('projects');
 	$q->addQuery('project_id, co.company_name, project_name');
@@ -153,6 +174,7 @@ function arrayMerge($a1, $a2) {
 ##
 function breadCrumbs(&$arr) {
 	GLOBAL $AppUI;
+	/** @var CAppUI $AppUI */
 	$crumbs = array();
 	foreach ($arr as $k => $v) {
 		$crumbs[] = '<a href="' . $AppUI->___($k) . '">' . $AppUI->_($v) . '</a>';
@@ -165,6 +187,7 @@ function breadCrumbs(&$arr) {
 ##
 function dPcontextHelp($title, $link='') {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 	return ('<a href="#' . $AppUI->___($link) . '" onClick="' 
 	        . "javascript:window.open('?m=help&dialog=1&hid=$link', 'contexthelp', " 
 	        . "'width=400, height=400, left=50, top=50, scrollbars=yes, resizable=yes')" . '">' 
@@ -176,7 +199,7 @@ function dPcontextHelp($title, $link='') {
 * Retrieves a configuration setting.
 * @param $key string The name of a configuration setting
 * @param $default string The default value to return if the key not found.
-* @return The value of the setting, or the default value if not found.
+* @return mixed The value of the setting, or the default value if not found.
 */
 function dPgetConfig($key, $default = null) {
 	global $dPconfig;
@@ -205,6 +228,7 @@ function dPgetUsernameFromID($user) {
 
 function dPgetUsers() {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 	$q = new DBQuery;
 	$q->addTable('users');
 	$q->addQuery('user_id, concat_ws(" ", contact_first_name, contact_last_name) as name');
@@ -217,6 +241,7 @@ function dPgetUsers() {
 ##
 function dPshowModuleConfig($config) {
 	GLOBAL $AppUI;
+	/** @var CAppUI $AppUI */
 	$s = '<table cellspacing="2" cellpadding="2" border="0" class="std" width="50%">';
 	$s .= '<tr><th colspan="2">'.$AppUI->_('Module Configuration').'</th></tr>';
 	foreach ($config as $k => $v) {
@@ -231,7 +256,7 @@ function dPshowModuleConfig($config) {
  *	Function to recussively find an image in a number of places
  *	@param string The name of the image
  *	@param string Optional name of the current module
- *	@return location for image, "default" location returned if not found elsewhere (even if not present there).
+ *	@return string Location for image, "default" location returned if not found elsewhere (even if not present there).
  */
 function dPfindImage($name, $module=null) {
 	global $uistyle; // uistyle must be declared globally
@@ -260,6 +285,7 @@ function dPfindImage($name, $module=null) {
  */
 function dPshowImage($src, $wid='', $hgt='', $alt='', $title='') {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 	
 	if ($src == '') {
 		return '';
@@ -328,6 +354,7 @@ function dPlink($title, $href) {
 
 function addHistory($table, $id, $action = 'modify', $description = '', $project_id = 0) {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 	/*
 	 * TODO:
 	 * 1) description should be something like:
@@ -413,6 +440,7 @@ function dPgetSysVal($title) {
 
 function dPuserHasRole($name) {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 	$uid = (int)$AppUI->user_id;
 	
 	$q	= new DBQuery;
@@ -430,6 +458,7 @@ function dPuserHasRole($name) {
  */
 function dPformatDuration($x) {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 	
 	$dur_day = floor($x / dPgetConfig('daily_working_hours'));
 	$dur_hour = ($x % dPgetConfig('daily_working_hours'));
@@ -470,6 +499,7 @@ define ('DP_FORM_URI', 2);
 define ('DP_FORM_JSVARS', 4);
 function dPformSafe($txt, $flag_bits = 0) {
 	global $AppUI, $locale_char_set;
+	/** @var CAppUI $AppUI */
 	
 	if (!$locale_char_set) {
 		$locale_char_set = 'utf-8';
@@ -531,6 +561,7 @@ function convert2days($durn, $units) {
 
 function formatTime($uts) {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 	$date = new CDate();
 	$date->setDate($uts, DATE_FORMAT_UNIXTIME);	
 	return $date->format($AppUI->getPref('SHDATEFORMAT'));
@@ -543,6 +574,7 @@ function formatTime($uts) {
  */
 function formatCurrency($number, $format) {
 	global $AppUI, $locale_char_set;
+	/** @var CAppUI $AppUI */
 
 	if (!$format) {
 		$format = $AppUI->getPref('SHCURRFORMAT');
@@ -581,6 +613,7 @@ function formatCurrency($number, $format) {
 	                                 $mondat['mon_decimal_point'], $mondat['mon_thousands_sep']);
 	// Not sure, but most countries don't put the sign in if it is positive.
 	$letter='p';
+	$currency = "";
 	$currency_prefix="";
 	$currency_suffix="";
 	$prefix="";
@@ -688,10 +721,10 @@ function findTabModules($module, $file = null) {
 }
 
 /**
- * @return void
+ * Show an structure (array/object) formatted
  * @param mixed $var
- * @param char $title
- * @desc Show an estructure (array/object) formatted
+ * @param string $title
+ * @return void
 */
 function showFVar(&$var, $title = "") {
 	echo '<h1>' . $title . '</h1><pre>' . print_r($var, true) . '</pre>';
@@ -708,6 +741,7 @@ function getUsersArray() {
 
 function getUsersCombo($default_user_id = 0, $first_option = 'All users') {
 	global $AppUI;
+	/** @var CAppUI $AppUI */
 	
 	$parsed = '<select name="user_id" class="text">';
 	if ($first_option != "") {
@@ -730,6 +764,7 @@ function getUsersCombo($default_user_id = 0, $first_option = 'All users') {
 function shownavbar($xpg_totalrecs, $xpg_pagesize, $xpg_total_pages, $page, $folder = false) {
 	
 	global $AppUI, $tab, $m, $a;
+	/** @var CAppUI $AppUI */
 	$NUM_PAGES_TO_DISPLAY = 15; //TODO?: Set by System Config Value ...
 	$RANGE_LIMITS = floor($NUM_PAGES_TO_DISPLAY / 2);
 	
@@ -829,6 +864,7 @@ function dPsgn($x) {
 */
 function dPrequiredFields($requiredFields) {
 	global $AppUI, $m;
+	/** @var CAppUI $AppUI */
 	$buffer = 'var foc=false;'."\n";
 
 	if (!empty($requiredFields)) {
@@ -941,5 +977,22 @@ function safe_utf8_decode($string)
 	} else {
 		return $string;
 	}
+}
+
+/**
+ * Generate a CSRF token
+ */
+function generateCSRFToken() {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Validate CSRF token
+ */
+function validateCSRFToken($token) {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 ?>
