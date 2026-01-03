@@ -39,6 +39,7 @@ else {
  		$sql = $custom_fields->store($obj->company_id); // Store Custom Fields
 		$AppUI->setMsg(((@$_POST['company_id']) ? 'updated' : 'added'), UI_MSG_OK, true);
 	}
-	$AppUI->redirect();
+	// Redirect explicitly to the companies list to avoid returning to a filtered tab view
+	$AppUI->redirect('m=companies');
 }
 ?>

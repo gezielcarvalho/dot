@@ -59,44 +59,9 @@ $suppressHeaders = (bool)dPgetParam($_GET, 'suppressHeaders', false);
 // manage the session variable(s)
 dPsessionStart(array('AppUI'));
 
-// Local debug: log session/cookie state when running on localhost to help diagnose
-if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
-	$dbg = array(
-		'time' => date('c'),
-		'remote_addr' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
-		'request_uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
-		'cookies' => $_COOKIE,
-		'session_id' => session_id(),
-		'session_exists' => array_key_exists('AppUI', 
-			isset($_SESSION) ? $_SESSION : array()),
-	);
-	// capture minimal AppUI info if available
-	if (isset($_SESSION['AppUI'])) {
-		$ai = $_SESSION['AppUI'];
-		if (is_object($ai) && isset($ai->user_id)) {
-			$dbg['appui_user_id'] = $ai->user_id;
-		}
-	}
-	@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode($dbg) . "\n", FILE_APPEND);
-}
 
-// Log doLogin evaluation and AppUI user_id for diagnosis
-if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
-	$doLoginVal = null;
-	if (isset($AppUI) && is_object($AppUI) && method_exists($AppUI, 'doLogin') && is_callable(array($AppUI, 'doLogin'))) {
-		try {
-			$doLoginVal = call_user_func(array($AppUI, 'doLogin'));
-		} catch (Throwable $e) {
-			$doLoginVal = null;
-		}
-	}
-	$dbg2 = array(
-		'time' => date('c'),
-		'doLogin' => $doLoginVal,
-		'appui_user_id' => (isset($AppUI) && is_object($AppUI)) ? $AppUI->user_id : null,
-	);
-	@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode($dbg2) . "\n", FILE_APPEND);
-}
+
+
 
 // CSRF protection for POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -105,24 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$allow_without_session = false;
 	if (!isset($_SESSION['csrf_token']) && (isset($_POST['login']) || isset($_POST['lostpass']))) {
 		$allow_without_session = true;
-		if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
-			@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode(array('time'=>date('c'),'event'=>'csrf_bypass_for_login_or_lostpass','session_id'=>session_id(),'post_keys'=>array_keys($_POST))) . "\n", FILE_APPEND);
-		}
 	}
 	if (!$allow_without_session && !validateCSRFToken($token)) {
 		// Log details to help diagnose missing/mismatched CSRF tokens
-		if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
-			$dbg = array(
-				'time' => date('c'),
-				'event' => 'csrf_failed',
-				'post_token' => $token,
-				'session_token' => isset($_SESSION['csrf_token']) ? $_SESSION['csrf_token'] : null,
-				'session_id' => session_id(),
-				'cookies' => $_COOKIE,
-				'post_keys' => array_keys($_POST),
-			);
-			@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode($dbg) . "\n", FILE_APPEND);
-		}
+        
 		die('CSRF token validation failed.');
 	}
 }
@@ -158,17 +109,7 @@ if (!function_exists('appui_is_logged_in')) {
 		return (isset($AppUI->user_id) && $AppUI->user_id > 0);
 	}
 }
-// Debug: log AppUI state right after restoring from session
-if (mb_strpos(DP_BASE_URL, 'localhost') !== false) {
-	$dbg_appui = array(
-		'time' => date('c'),
-		'session_id' => session_id(),
-		'appui_is_object' => isset($AppUI) && is_object($AppUI),
-		'appui_user_id' => (isset($AppUI) && is_object($AppUI)) ? $AppUI->user_id : null,
-		'doLogin' => (isset($AppUI) && is_object($AppUI)) ? $AppUI->doLogin() : null,
-	);
-	@file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode($dbg_appui) . "\n", FILE_APPEND);
-}
+
 
 // If restored AppUI has no user_id (null/missing) coerce to -1 so logic is consistent
 if (isset($AppUI) && is_object($AppUI) && (!isset($AppUI->user_id) || $AppUI->user_id === null)) {
@@ -235,6 +176,8 @@ if (isset($_REQUEST['login'])) {
 
 // set the default ui style
 $uistyle = (($AppUI->getPref('UISTYLE')) ? $AppUI->getPref('UISTYLE') : dPgetConfig('host_style'));
+
+
 
 // clear out main url parameters
 $m = '';

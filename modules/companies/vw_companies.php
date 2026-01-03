@@ -3,6 +3,8 @@ if (!defined('DP_BASE_DIR')) {
   die('You should not access this file directly.');
 }
 
+
+
 global $search_string, $owner_filter_id, $type_filter, $orderby, $orderdir;
 global $currentTabId, $currentTabName, $tabbed;
 
@@ -14,13 +16,14 @@ $obj = new CCompany();
 $allowedCompanies = $obj->getAllowedRecords($AppUI->user_id, 'company_id, company_name');
 
 $company_type_filter = $currentTabId;
-//Not Defined
+// By default, treat tab 0 as 'All Companies' unless it's explicitly 'Not Applicable'
 $companiesType = true;
-if ($currentTabName == 'All Companies') {
+if ($currentTabId == 0 && $currentTabName != 'Not Applicable') {
 	$companiesType = false;
 }
 if ($currentTabName == 'Not Applicable') {
 	$company_type_filter = 0;
+	$companiesType = true;
 }
 
 // retrieve list of records
@@ -30,10 +33,10 @@ $q->addQuery('c.company_id, c.company_name, c.company_type, c.company_descriptio
              . ', count(distinct p.project_id) as countp' 
 			 . ', count(distinct p2.project_id) as inactive' 
              . ', con.contact_first_name, con.contact_last_name');
-$q->addJoin('projects', 'p', 'c.company_id = p.project_company AND p.project_status <> 7');
-$q->addJoin('users', 'u', 'c.company_owner = u.user_id');
-$q->addJoin('contacts', 'con', 'u.user_contact = con.contact_id');
-$q->addJoin('projects', 'p2', 'c.company_id = p2.project_company AND p2.project_status = 7');
+$q->leftJoin('projects', 'p', 'c.company_id = p.project_company AND p.project_status <> 7');
+$q->leftJoin('users', 'u', 'c.company_owner = u.user_id');
+$q->leftJoin('contacts', 'con', 'u.user_contact = con.contact_id');
+$q->leftJoin('projects', 'p2', 'c.company_id = p2.project_company AND p2.project_status = 7');
 if (count($allowedCompanies) > 0) {
 	$q->addWhere('c.company_id IN (' . implode(',', array_keys($allowedCompanies)) . ')');
 }
@@ -48,7 +51,25 @@ if ($owner_filter_id > 0) {
 }
 $q->addGroup('c.company_id');
 $q->addOrder($orderby . ' ' . $orderdir);
+
+// Debug logging: record the final SQL and allowed company lists to help troubleshooting
+$sql = $q->prepare();
+$logEntry = json_encode(array('time'=>date('c'),'file'=>'vw_companies.php','sql'=>$sql,'allowedCompanies'=>array_keys($allowedCompanies)));
+file_put_contents(DP_BASE_DIR . '/tmp/companies_debug.log', $logEntry . "\n", FILE_APPEND);
+// Also append to the session debug log for visibility
+file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', $logEntry . "\n", FILE_APPEND);
+// And send to PHP error log
+error_log('vw_companies debug: ' . $logEntry);
+
 $rows = $q->loadList();
+// Log result summary (IDs and count)
+$row_ids = array();
+foreach ($rows as $r) {
+	if (isset($r['company_id'])) $row_ids[] = $r['company_id'];
+}
+file_put_contents(DP_BASE_DIR . '/tmp/companies_debug.log', json_encode(array('time'=>date('c'),'file'=>'vw_companies.php','rows_count'=>count($rows),'row_ids'=>$row_ids)) . "\n", FILE_APPEND);
+file_put_contents(DP_BASE_DIR . '/tmp/session_debug.log', json_encode(array('time'=>date('c'),'file'=>'vw_companies.php','rows_count'=>count($rows),'row_ids'=>$row_ids)) . "\n", FILE_APPEND);
+error_log('vw_companies result: ' . json_encode(array('rows_count'=>count($rows),'row_ids'=>$row_ids)));
 ?>
 <table width="100%" border="0" cellpadding="2" cellspacing="1" class="tbl" summary="company list">
 <tr>

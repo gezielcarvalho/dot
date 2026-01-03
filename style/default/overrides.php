@@ -94,6 +94,7 @@ class CTabBox extends CTabBox_core {
 			if (isset($this->tabs[$this->active]) && $this->tabs[$this->active][0] != "") {
 				$currentTabId = $this->active;
 				$currentTabName = $this->tabs[$this->active][1];
+
 				if (!$js_tabs)
 					require $this->baseInc.$this->tabs[$this->active][0].'.php';
 			}
@@ -102,9 +103,10 @@ class CTabBox extends CTabBox_core {
 				foreach ($this->tabs as $k => $v) 
 				{
 					echo '<div class="tab" id="tab_'.$k.'">';
-					$currentTabId = $k;
-					$currentTabName = $v[1];
-					require $this->baseInc.$v[0].'.php';
+						$currentTabId = $k;
+						$currentTabName = $v[1];
+
+						require $this->baseInc.$v[0].'.php';
 					echo '</div>';
 					echo ('<script language="javascript" >' . "\n" 
 						  . '//<!--' . "\n" 

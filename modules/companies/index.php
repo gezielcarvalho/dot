@@ -22,11 +22,14 @@ $orderby = (($AppUI->getState('CompIdxOrderBy'))
             ? $AppUI->getState('CompIdxOrderBy') : 'company_name');
 $orderdir = (($AppUI->getState('CompIdxOrderDir')) ? $AppUI->getState('CompIdxOrderDir') : 'asc');
 
-$owner_filter_id = intval(dPgetParam($_REQUEST, 'owner_filter_id', 0));
-if ($owner_filter_id !== 0) {
-	$AppUI->setState('owner_filter_id', $owner_filter_id_pre);
+$owner_filter_id = intval(dPgetParam($_REQUEST, 'owner_filter_id', -1));
+// Default to -1 (All) so the companies list is not restricted to the
+// current user by default. Only store the state when an explicit
+// owner_filter_id is provided in the request.
+if ($owner_filter_id !== -1) {
+	$AppUI->setState('owner_filter_id', $owner_filter_id);
 } else {
-	$owner_filter_id = $AppUI->getState('owner_filter_id', $AppUI->user_id);
+	$owner_filter_id = $AppUI->getState('owner_filter_id', -1);
 }
 // load the company types
 $types = dPgetSysVal('CompanyType');
@@ -103,6 +106,11 @@ foreach ($types as $type => $type_name) {
 	$type_filter[] = $type;
 	$tabBox->add('vw_companies', $type_name);
 }
+
+// Ensure the active tab index is within the available tabs so the
+// style include mechanism will require the correct view file.
+$numTabs = count($types);
+$tabBox->active = max(0, min(intval($companiesTypeTab), max(0, $numTabs - 1)));
 
 $tabBox->show();
 ?>
