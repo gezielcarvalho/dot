@@ -456,12 +456,16 @@ class CAppUI {
 		if (empty($str)) {
 			return '';
 		}
-		$x = @$GLOBALS['translate'][$str];
-		
+		// safely read translation table to avoid undefined-key notices
+		$x = null;
+		if (isset($GLOBALS['translate']) && is_array($GLOBALS['translate']) && array_key_exists($str, $GLOBALS['translate'])){
+			$x = $GLOBALS['translate'][$str];
+		}
+
 		if ($x) {
 			$str = $x;
 		} else if (dPgetConfig('locale_warn') && !($this->base_locale == $this->user_locale 
-		                                           && in_array($str, @$GLOBALS['translate']))) {
+										   && in_array($str, (is_array(@$GLOBALS['translate'])?$GLOBALS['translate']:array())))) {
 			$str .= dPgetConfig('locale_alert');
 		}
 		

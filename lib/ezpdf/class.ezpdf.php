@@ -23,6 +23,25 @@ var $y; // this is the current vertical positon on the page of the writing point
 var $ezPages=array(); // keep an array of the ids of the pages, making it easy to go back and add page numbers etc.
 var $ezPageCount=0;
 
+// helper to return page height with compatibility for misspelling
+function ezGetPageHeight(){
+  if (is_array($this->ez) && isset($this->ez['pageHeight'])){
+    return $this->ez['pageHeight'];
+  }
+  if (is_array($this->ez) && isset($this->ez['pageHeigth'])){
+    return $this->ez['pageHeigth'];
+  }
+  return 0;
+}
+
+// helper to return page width safely
+function ezGetPageWidth(){
+  if (is_array($this->ez) && isset($this->ez['pageWidth'])){
+    return $this->ez['pageWidth'];
+  }
+  return 0;
+}
+
 // ------------------------------------------------------------------------------
 
 function Cezpdf($paper='a4',$orientation='portrait'){
@@ -111,9 +130,12 @@ function Cezpdf($paper='a4',$orientation='portrait'){
 			$size[3] = ( $paper[1] / 2.54 ) * 72;
 		}
 	}
-	$this->Cpdf($size);
-	$this->ez['pageWidth']=$size[2];
-	$this->ez['pageHeight']=$size[3];
+  // pre-initialize page dimensions so parent constructor can safely call methods
+  $this->ez['pageWidth']=$size[2];
+  $this->ez['pageHeight']=$size[3];
+  // compatibility: some consumers/libraries misspell 'pageHeight' as 'pageHeigth'
+  $this->ez['pageHeigth']=$size[3];
+  $this->Cpdf($size);
 	
 	// also set the margins to some reasonable defaults
 	$this->ez['topMargin']=30;
@@ -121,11 +143,16 @@ function Cezpdf($paper='a4',$orientation='portrait'){
 	$this->ez['leftMargin']=30;
 	$this->ez['rightMargin']=30;
 	
-	// set the current writing position to the top of the first page
-	$this->y = $this->ez['pageHeight']-$this->ez['topMargin'];
+  // set the current writing position to the top of the first page
+  $this->y = $this->ezGetPageHeight()-$this->ez['topMargin'];
 	// and get the ID of the page that was created during the instancing process.
 	$this->ezPages[1]=$this->getFirstPageId();
 	$this->ezPageCount=1;
+}
+
+// PHP 5/8+ compatible constructor wrapper
+function __construct($paper='a4',$orientation='portrait'){
+  $this->Cezpdf($paper,$orientation);
 }
 
 // ------------------------------------------------------------------------------
@@ -167,7 +194,7 @@ function ezColumnsStart($options=array()){
   $this->ez['columns']['options']=$options;
   // then reset the margins to suit the new columns
   // safe enough to assume the first column here, but start from the current y-position
-  $this->ez['topMargin']=$this->ez['pageHeight']-$this->y;
+  $this->ez['topMargin']=$this->ezGetPageHeight()-$this->y;
   $width=($this->ez['pageWidth']-$this->ez['leftMargin']-$this->ez['rightMargin']-($options['num']-1)*$options['gap'])/$options['num'];
   $this->ez['columns']['width']=$width;
   $this->ez['rightMargin']=$this->ez['pageWidth']-$this->ez['leftMargin']-$width;
@@ -225,7 +252,7 @@ function ezNewPage(){
 
   if ($pageRequired){
     // make a new page, setting the writing point back to the top
-    $this->y = $this->ez['pageHeight']-$this->ez['topMargin'];
+    $this->y = $this->ezGetPageHeight()-$this->ez['topMargin'];
     // make the new page with a call to the basic class.
     $this->ezPageCount++;
     if (isset($this->ez['insertMode']) && $this->ez['insertMode']==1){
@@ -237,7 +264,7 @@ function ezNewPage(){
       $this->ezPages[$this->ezPageCount] = $this->newPage();
     }
   } else {
-    $this->y = $this->ez['pageHeight']-$this->ez['topMargin'];
+    $this->y = $this->ezGetPageHeight()-$this->ez['topMargin'];
   }
 }
 
@@ -251,9 +278,9 @@ function ezSetMargins($top,$bottom,$left,$right){
   $this->ez['rightMargin']=$right;
   // check to see if this means that the current writing position is outside the 
   // writable area
-  if ($this->y > $this->ez['pageHeight']-$top){
+  if ($this->y > $this->ezGetPageHeight()-$top){
     // then move y down
-    $this->y = $this->ez['pageHeight']-$top;
+    $this->y = $this->ezGetPageHeight()-$top;
   }
   if ( $this->y < $bottom){
     // then make a new page
@@ -400,7 +427,8 @@ function ezPRVTaddPageNumbers(){
             // then this must be starting page numbers
             $status=1;
             $info = $tmp[$pageNum];
-            $info['dnum']=$info['num']-$pageNum;
+            // ensure numeric arithmetic (avoid string - int TypeError)
+            $info['dnum'] = ((int)$info['num']) - (int)$pageNum;
             // also check for the special case of the numbering stopping and starting on the same page
             if (isset($info['stopn']) || isset($info['stoptn']) ){
               $status=2;
@@ -453,6 +481,7 @@ function ezPRVTcleanUp(){
 
 function ezStream($options=''){
   $this->ezPRVTcleanUp();
+  // stream to client
   $this->stream($options);
 }
 
@@ -649,7 +678,9 @@ function ezTable(&$data,$cols='',$title='',$options=''){
   if (!is_array($cols)){
     // take the columns from the first row of the data set
     reset($data);
-    list($k,$v)=each($data);
+    // each() was removed in PHP 8 — use key()/current() instead
+    $k = key($data);
+    $v = current($data);
     if (!is_array($v)){
       return;
     }
@@ -683,7 +714,7 @@ function ezTable(&$data,$cols='',$title='',$options=''){
   }
   $options['gap']=2*$options['colGap'];
   
-  $middle = ($this->ez['pageWidth']-$this->ez['rightMargin'])/2+($this->ez['leftMargin'])/2;
+  $middle = ($this->ezGetPageWidth()-$this->ez['rightMargin'])/2+($this->ez['leftMargin'])/2;
   // figure out the maximum widths of the text within each column
   $maxWidth=array();
   foreach($cols as $colName=>$colHeading){
@@ -824,7 +855,7 @@ function ezTable(&$data,$cols='',$title='',$options=''){
       $xref = $this->ez['leftMargin'];
       break;
     case 'right':
-      $xref = $this->ez['pageWidth'] - $this->ez['rightMargin'];
+      $xref = $this->ezGetPageWidth() - $this->ez['rightMargin'];
       break;
     case 'centre':
     case 'center':
@@ -884,7 +915,7 @@ function ezTable(&$data,$cols='',$title='',$options=''){
 
 
   // if the title is set, then do that
-  if (strlen($title)){
+  if (is_string($title) && strlen($title)){
     $w = $this->getTextWidth($options['titleFontSize'],$title);
     $this->y -= $this->getFontHeight($options['titleFontSize']);
     if ($this->y < $this->ez['bottomMargin']){
@@ -1015,7 +1046,7 @@ function ezTable(&$data,$cols='',$title='',$options=''){
           $this->reopenObject($textObjectId);
         }
         $this->setColor($options['textCol'][0],$options['textCol'][1],$options['textCol'][2],1);
-        $y = $this->ez['pageHeight']-$this->ez['topMargin'];
+        $y = $this->ezGetPageHeight()-$this->ez['topMargin'];
         $y0=$y+$decender;
         $mx=0;
         if ($options['showHeadings']){
@@ -1236,7 +1267,7 @@ function ezText($text,$size=0,$options=array(),$test=0){
   if (is_array($options) && isset($options['aright'])){
     $right=$options['aright'];
   } else {
-    $right = $this->ez['pageWidth'] - $this->ez['rightMargin'] - ((is_array($options) && isset($options['right']))?$options['right']:0);
+    $right = $this->ezGetPageWidth() - $this->ez['rightMargin'] - ((is_array($options) && isset($options['right']))?$options['right']:0);
   }
   if ($size<=0){
     $size = $this->ez['fontSize'];
@@ -1282,7 +1313,7 @@ function ezText($text,$size=0,$options=array(),$test=0){
       if (is_array($options) && isset($options['aright'])){
         $right=$options['aright'];
       } else {
-        $right = $this->ez['pageWidth'] - $this->ez['rightMargin'] - ((is_array($options) && isset($options['right']))?$options['right']:0);
+        $right = $this->ezGetPageWidth() - $this->ez['rightMargin'] - ((is_array($options) && isset($options['right']))?$options['right']:0);
       }
       $line=$this->addTextWrap($left,$this->y,$right-$left,$size,$line,$just,0,$test);
     }
@@ -1337,7 +1368,7 @@ function ezImage($image,$pad = 5,$width = 0,$resize = 'full',$just = 'center',$b
 	}
 	else
 	{
-		$bigwidth = $this->ez['pageWidth'] - ($pad * 2);
+    $bigwidth = $this->ezGetPageWidth() - ($pad * 2);
 	}
 	//fix width if larger than maximum or if $resize=full
 	if ($resize == 'full' || $resize == 'width' || $width > $bigwidth)

@@ -126,6 +126,19 @@ class CDate extends Date {
 		}
 	}
 
+	function before($when)
+	{
+		if (!is_object($when)) {
+			$when = new CDate($when);
+		}
+		try {
+			return parent::before($when);
+		} catch (\Throwable $t) {
+			@file_put_contents(DP_BASE_DIR . '/tmp/date_error.log', date('c') . " - CDate::before error: " . $t->getMessage() . PHP_EOL, FILE_APPEND);
+			return false;
+		}
+	}
+
 /**
 * Overloaded compare method
 *

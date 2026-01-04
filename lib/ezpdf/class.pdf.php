@@ -203,6 +203,11 @@ function Cpdf ($pageSize=array(0,0,612,792)){
 
 }
 
+// PHP 5/8+ compatible constructor wrapper
+function __construct($pageSize=array(0,0,612,792)){
+  $this->Cpdf($pageSize);
+}
+
 /**
 * Document object methods (internal use only)
 *
@@ -256,7 +261,7 @@ function o_destination($id,$action,$options=''){
 /**
 * set the viewer preferences
 */
-function o_viewerPreferences($id,$action,$options=''){
+function o_viewerPreferences($id,$action,$options=array()){
   if ($action!='new'){
     $o =& $this->objects[$id];
   }
@@ -472,7 +477,7 @@ function o_outlines($id,$action,$options=''){
 /**
 * an object to hold the font description
 */
-function o_font($id,$action,$options=''){
+function o_font($id,$action,$options=array()){
   if ($action!='new'){
     $o =& $this->objects[$id];
   }
@@ -887,19 +892,22 @@ function o_page($id,$action,$options=''){
 /**
 * the contents objects hold all of the content which appears on pages
 */
-function o_contents($id,$action,$options=''){
+function o_contents($id,$action,$options=array()){
   if ($action!='new'){
     $o =& $this->objects[$id];
   }
   switch ($action){
     case 'new':
       $this->objects[$id]=array('t'=>'contents','c'=>'','info'=>array());
-      if (strlen($options) && intval($options)){
-        // then this contents is the primary for a page
-        $this->objects[$id]['onPage']=$options;
-      } else if ($options=='raw'){
-        // then this page contains some other type of system object
-        $this->objects[$id]['raw']=1;
+      if (!is_array($options)){
+        $optstr = (string)$options;
+        if (strlen($optstr) && intval($optstr)){
+          // then this contents is the primary for a page
+          $this->objects[$id]['onPage']=$options;
+        } elseif ($optstr === 'raw'){
+          // then this page contains some other type of system object
+          $this->objects[$id]['raw']=1;
+        }
       }
       break;
     case 'add':
@@ -1231,12 +1239,22 @@ function output($debug=0){
   $this->checkAllHere();
 
   $xref=array();
-  $content="%PDF-1.3\n%âãÏÓ\n";
+  $content="%PDF-1.3\n%ï¿½ï¿½ï¿½ï¿½\n";
 //  $content="%PDF-1.3\n";
   $pos=strlen($content);
   foreach($this->objects as $k=>$v){
-    $tmp='o_'.$v['t'];
-    $cont=$this->$tmp($k,'out');
+    if (isset($v['t']) && strlen((string)$v['t'])){
+      $tmp = 'o_'.$v['t'];
+      if (method_exists($this, $tmp)){
+        $cont = $this->$tmp($k,'out');
+      } else {
+        $this->addMessage("Skipping unknown object type '$tmp' for object $k");
+        $cont = '';
+      }
+    } else {
+      // no object type defined, skip silently to avoid noisy messages
+      $cont = '';
+    }
     $content.=$cont;
     $xref[]=$pos;
     $pos+=strlen($cont);
@@ -1913,6 +1931,7 @@ function stream($options=''){
   } else {
     $tmp = $this->output();
   }
+  // debug logging removed
   header("Content-type: application/pdf");
   header("Content-Length: ".strlen(ltrim($tmp)));
   $fileName = (isset($options['Content-Disposition'])?$options['Content-Disposition']:'file.pdf');
@@ -2074,7 +2093,7 @@ function PRVTcheckTextDirective1(&$text,$i,&$f,$final,&$x,&$y,$size=0,$angle=0,$
                   // for simplicity, just take from the end, fix this another day
                   $this->nCallback--;
                   if ($this->nCallback<0){
-                    $this->nCallBack=0;
+                    $this->nCallback=0;
                   }
                 }
               }
@@ -2928,7 +2947,7 @@ function addImage(&$img,$x,$y,$w=0,$h=0,$quality=75){
 *
 * @access private
 */
-function addJpegImage_common(&$data,$x,$y,$w=0,$h=0,$imageWidth,$imageHeight,$channels=3){
+function addJpegImage_common(&$data,$x,$y,$w=0,$h=0,$imageWidth=0,$imageHeight=0,$channels=3){
   // note that this function is not to be called externally
   // it is just the common code between the GD and the file options
   $this->numImages++;

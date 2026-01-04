@@ -188,8 +188,17 @@ $u = '';
 if (appui_is_logged_in($AppUI)) {
 	// load basic locale settings
 	$AppUI->setUserLocale();
-	@include_once('./locales/' . $AppUI->user_locale . '/locales.php');
-	@include_once('./locales/core.php');
+	$locale = (isset($AppUI->user_locale) && strlen($AppUI->user_locale)) ? $AppUI->user_locale : '';
+	if ($locale) {
+		$lp = DP_BASE_DIR . '/locales/' . $locale . '/locales.php';
+		if (file_exists($lp)) {
+			include_once $lp;
+		}
+	}
+	$corep = DP_BASE_DIR . '/locales/core.php';
+	if (file_exists($corep)) {
+		include_once $corep;
+	}
 	setlocale(LC_TIME, $AppUI->user_lang);
 	$redirect = (($_SERVER['QUERY_STRING']) ? strip_tags($_SERVER['QUERY_STRING']) : '');
 	if (mb_strpos($redirect, 'logout') !== false) {
@@ -211,7 +220,13 @@ if (appui_is_logged_in($AppUI)) {
 	exit;
 }
 $AppUI->setUserLocale();
-@include_once('./locales/' . $AppUI->user_locale . '/locales.php');
+$locale = (isset($AppUI->user_locale) && strlen($AppUI->user_locale)) ? $AppUI->user_locale : '';
+if ($locale) {
+	$lp = DP_BASE_DIR . '/locales/' . $locale . '/locales.php';
+	if (file_exists($lp)) {
+		include_once $lp;
+	}
+}
 
 /* date class sets the default start day which comes from the locale */
 require_once($AppUI->getSystemClass('date'));

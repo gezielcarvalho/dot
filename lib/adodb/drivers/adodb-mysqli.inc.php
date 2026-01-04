@@ -86,18 +86,22 @@ class ADODB_mysqli extends ADOConnection {
 	function _connect($argHostname = NULL,
 				$argUsername = NULL,
 				$argPassword = NULL,
-				$argDatabasename = NULL, $persist=false)
+				$argDatabaseName = NULL, $persist=false)
 	{
 		if(!extension_loaded("mysqli")) {
 			return null;
 		}
 		$this->_connectionID = @mysqli_init();
 
-		if (is_null($this->_connectionID)) {
-			// mysqli_init only fails if insufficient memory
+		// mysqli_init returns a mysqli object on success, or false on failure.
+		// Ensure we have an object before calling mysqli_* functions to avoid
+		// passing a boolean where a mysqli instance is expected.
+		if (!is_object($this->_connectionID)) {
+			// mysqli_init failed (likely insufficient memory or extension issue)
 			if ($this->debug) {
 				ADOConnection::outp("mysqli_init() failed : "  . $this->ErrorMsg());
 			}
+			$this->_connectionID = null;
 			return false;
 		}
 		/*
@@ -105,26 +109,28 @@ class ADODB_mysqli extends ADOConnection {
 		read connection options from the standard mysql configuration file
 		/etc/my.cnf - "Bastien Duclaux" <bduclaux#yahoo.com>
 		*/
-		foreach($this->optionFlags as $arr) {
-			mysqli_options($this->_connectionID,$arr[0],$arr[1]);
+		if (is_object($this->_connectionID)) {
+			foreach($this->optionFlags as $arr) {
+				@mysqli_options($this->_connectionID,$arr[0],$arr[1]);
+			}
 		}
 
 		//http ://php.net/manual/en/mysqli.persistconns.php
 		if ($persist && PHP_VERSION > 5.2 && strncmp($argHostname,'p:',2) != 0) $argHostname = 'p:'.$argHostname;
 
 		#if (!empty($this->port)) $argHostname .= ":".$this->port;
-		$ok = mysqli_real_connect($this->_connectionID,
-					$argHostname,
-					$argUsername,
-					$argPassword,
-					$argDatabasename,
+		$ok = (bool) mysqli_real_connect($this->_connectionID,
+			    $argHostname,
+			    $argUsername,
+			    $argPassword,
+			    $argDatabaseName,
 					# PHP7 compat: port must be int. Use default port if cast yields zero
 					(int)$this->port != 0 ? (int)$this->port : 3306,
 					$this->socket,
 					$this->clientFlags);
 
 		if ($ok) {
-			if ($argDatabasename)  return $this->SelectDB($argDatabasename);
+			if ($argDatabaseName)  return $this->SelectDB($argDatabaseName);
 			return true;
 		} else {
 			if ($this->debug) {
@@ -137,9 +143,9 @@ class ADODB_mysqli extends ADOConnection {
 
 	// returns true or false
 	// How to force a persistent connection
-	function _pconnect($argHostname, $argUsername, $argPassword, $argDatabasename)
+	function _pconnect($argHostname = NULL, $argUsername = NULL, $argPassword = NULL, $argDatabaseName = NULL)
 	{
-		return $this->_connect($argHostname, $argUsername, $argPassword, $argDatabasename, true);
+		return $this->_connect($argHostname, $argUsername, $argPassword, $argDatabaseName, true);
 	}
 
 	// When is this used? Close old connection first?
@@ -184,7 +190,9 @@ class ADODB_mysqli extends ADOConnection {
 		$this->transCnt += 1;
 
 		//$this->Execute('SET AUTOCOMMIT=0');
-		mysqli_autocommit($this->_connectionID, false);
+		if (is_object($this->_connectionID)) {
+			mysqli_autocommit($this->_connectionID, false);
+		}
 		$this->Execute('BEGIN');
 		return true;
 	}
@@ -198,7 +206,9 @@ class ADODB_mysqli extends ADOConnection {
 		$this->Execute('COMMIT');
 
 		//$this->Execute('SET AUTOCOMMIT=1');
-		mysqli_autocommit($this->_connectionID, true);
+		if (is_object($this->_connectionID)) {
+			mysqli_autocommit($this->_connectionID, true);
+		}
 		return true;
 	}
 
@@ -208,7 +218,9 @@ class ADODB_mysqli extends ADOConnection {
 		if ($this->transCnt) $this->transCnt -= 1;
 		$this->Execute('ROLLBACK');
 		//$this->Execute('SET AUTOCOMMIT=1');
-		mysqli_autocommit($this->_connectionID, true);
+		if (is_object($this->_connectionID)) {
+			mysqli_autocommit($this->_connectionID, true);
+		}
 		return true;
 	}
 
@@ -237,8 +249,9 @@ class ADODB_mysqli extends ADOConnection {
 		if (is_null($s)) return 'NULL';
 		if (!$magic_quotes) {
 			// mysqli_real_escape_string() throws a warning when the given
-			// connection is invalid
-			if (PHP_VERSION >= 5 && $this->_connectionID) {
+			// connection is invalid. Ensure we have a mysqli object before
+			// passing it to the mysqli API to avoid passing booleans/true.
+			if (PHP_VERSION >= 5 && is_object($this->_connectionID)) {
 				return "'" . mysqli_real_escape_string($this->_connectionID, $s) . "'";
 			}
 
@@ -252,8 +265,14 @@ class ADODB_mysqli extends ADOConnection {
 		return "'$s'";
 	}
 
-	function _insertid()
+	function _insertid($table = '', $column = '')
 	{
+		// Ensure connection is a mysqli object before calling mysqli API.
+		if (!is_object($this->_connectionID)) {
+			if ($this->debug) ADOConnection::outp("mysqli_insert_id() failed : "  . $this->ErrorMsg());
+			return false;
+		}
+
 		$result = @mysqli_insert_id($this->_connectionID);
 		if ($result == -1) {
 			if ($this->debug) ADOConnection::outp("mysqli_insert_id() failed : "  . $this->ErrorMsg());
@@ -264,6 +283,12 @@ class ADODB_mysqli extends ADOConnection {
 	// Only works for INSERT, UPDATE and DELETE query's
 	function _affectedrows()
 	{
+		// Ensure connection is a mysqli object before calling mysqli API.
+		if (!is_object($this->_connectionID)) {
+			if ($this->debug) ADOConnection::outp("mysqli_affected_rows() failed : "  . $this->ErrorMsg());
+			return false;
+		}
+
 		$result =  @mysqli_affected_rows($this->_connectionID);
 		if ($result == -1) {
 			if ($this->debug) ADOConnection::outp("mysqli_affected_rows() failed : "  . $this->ErrorMsg());
@@ -307,7 +332,12 @@ class ADODB_mysqli extends ADOConnection {
 		}
 
 		if ($rs) {
-			$this->genID = mysqli_insert_id($this->_connectionID);
+			if (is_object($this->_connectionID)) {
+				$this->genID = mysqli_insert_id($this->_connectionID);
+			} else {
+				if ($this->debug) ADOConnection::outp("mysqli_insert_id() failed : "  . $this->ErrorMsg());
+				$this->genID = 0;
+			}
 			$rs->Close();
 		} else
 			$this->genID = 0;
@@ -696,7 +726,8 @@ class ADODB_mysqli extends ADOConnection {
 		$this->database = $dbName;
 		$this->databaseName = $dbName; # obsolete, retained for compat with older adodb versions
 
-		if ($this->_connectionID) {
+		// Ensure connection is a mysqli object before calling mysqli_select_db
+		if (is_object($this->_connectionID)) {
 			$result = @mysqli_select_db($this->_connectionID, $dbName);
 			if (!$result) {
 				ADOConnection::outp("Select of database " . $dbName . " failed. " . $this->ErrorMsg());
@@ -738,7 +769,7 @@ class ADODB_mysqli extends ADOConnection {
 
 
 	// returns queryID or false
-	function _query($sql, $inputarr)
+	function _query($sql, $inputarr = false)
 	{
 	global $ADODB_COUNTRECS;
 		// Move to the next recordset, or return false if there is none. In a stored proc
@@ -755,14 +786,20 @@ class ADODB_mysqli extends ADOConnection {
 
 			$stmt = $sql[1];
 			$a = '';
-			foreach($inputarr as $k => $v) {
-				if (is_string($v)) $a .= 's';
-				else if (is_integer($v)) $a .= 'i';
-				else $a .= 'd';
-			}
+			// Ensure inputarr is iterable before binding parameters
+			if (!empty($inputarr) && is_array($inputarr)) {
+				foreach($inputarr as $k => $v) {
+					if (is_string($v)) $a .= 's';
+					else if (is_integer($v)) $a .= 'i';
+					else $a .= 'd';
+				}
 
-			$fnarr = array_merge( array($stmt,$a) , $inputarr);
-			$ret = call_user_func_array('mysqli_stmt_bind_param',$fnarr);
+				$fnarr = array_merge(array($stmt, $a), $inputarr);
+				$ret = call_user_func_array('mysqli_stmt_bind_param', $fnarr);
+				$ret = mysqli_stmt_execute($stmt);
+				return $ret;
+			}
+			// No parameters to bind; just execute
 			$ret = mysqli_stmt_execute($stmt);
 			return $ret;
 		}
@@ -777,15 +814,18 @@ class ADODB_mysqli extends ADOConnection {
 		*/
 
 		if ($this->multiQuery) {
-			$rs = mysqli_multi_query($this->_connectionID, $sql.';');
-			if ($rs) {
-				$rs = ($ADODB_COUNTRECS) ? @mysqli_store_result( $this->_connectionID ) : @mysqli_use_result( $this->_connectionID );
-				return $rs ? $rs : true; // mysqli_more_results( $this->_connectionID )
+			if (is_object($this->_connectionID)) {
+				$rs = mysqli_multi_query($this->_connectionID, $sql.';');
+				if ($rs) {
+					$rs = ($ADODB_COUNTRECS) ? @mysqli_store_result($this->_connectionID) : @mysqli_use_result($this->_connectionID);
+					return $rs ? $rs : true; // mysqli_more_results( $this->_connectionID )
+				}
 			}
 		} else {
-			$rs = mysqli_query($this->_connectionID, $sql, $ADODB_COUNTRECS ? MYSQLI_STORE_RESULT : MYSQLI_USE_RESULT);
-
-			if ($rs) return $rs;
+			if (is_object($this->_connectionID)) {
+				$rs = mysqli_query($this->_connectionID, $sql, $ADODB_COUNTRECS ? MYSQLI_STORE_RESULT : MYSQLI_USE_RESULT);
+				if ($rs) return $rs;
+			}
 		}
 
 		if($this->debug)
@@ -798,17 +838,19 @@ class ADODB_mysqli extends ADOConnection {
 	/*	Returns: the last error message from previous database operation	*/
 	function ErrorMsg()
 	{
-		if (empty($this->_connectionID))
+		// Ensure we have a mysqli object before passing it to mysqli_error()
+		if (!is_object($this->_connectionID)) {
 			$this->_errorMsg = @mysqli_connect_error();
-		else
+		} else {
 			$this->_errorMsg = @mysqli_error($this->_connectionID);
+		}
 		return $this->_errorMsg;
 	}
 
 	/*	Returns: the last error number from previous database operation	*/
 	function ErrorNo()
 	{
-		if (empty($this->_connectionID))
+		if (!is_object($this->_connectionID))
 			return @mysqli_connect_errno();
 		else
 			return @mysqli_errno($this->_connectionID);
@@ -817,7 +859,10 @@ class ADODB_mysqli extends ADOConnection {
 	// returns true or false
 	function _close()
 	{
-		@mysqli_close($this->_connectionID);
+		// Only attempt to close if we have a mysqli object (avoid passing booleans)
+		if (is_object($this->_connectionID)) {
+			@mysqli_close($this->_connectionID);
+		}
 		$this->_connectionID = false;
 	}
 
@@ -848,10 +893,11 @@ class ADODB_mysqli extends ADOConnection {
 	function GetCharSet()
 	{
 		//we will use ADO's builtin property charSet
-		if (!method_exists($this->_connectionID,'character_set_name'))
+		// Ensure connection is a mysqli object before checking/using its methods
+		if (!is_object($this->_connectionID) || !method_exists($this->_connectionID,'character_set_name'))
 			return false;
 
-		$this->charSet = @$this->_connectionID->character_set_name();
+		$this->charSet = @($this->_connectionID->character_set_name());
 		if (!$this->charSet) {
 			return false;
 		} else {
@@ -862,12 +908,13 @@ class ADODB_mysqli extends ADOConnection {
 	// SetCharSet - switch the client encoding
 	function SetCharSet($charset_name)
 	{
-		if (!method_exists($this->_connectionID,'set_charset')) {
+		// Ensure connection is a mysqli object before checking/using its methods
+		if (!is_object($this->_connectionID) || !method_exists($this->_connectionID,'set_charset')) {
 			return false;
 		}
 
 		if ($this->charSet !== $charset_name) {
-			$if = @$this->_connectionID->set_charset($charset_name);
+			$if = @($this->_connectionID->set_charset($charset_name));
 			return ($if === true & $this->GetCharSet() == $charset_name);
 		} else {
 			return true;
@@ -884,6 +931,8 @@ class ADORecordSet_mysqli extends ADORecordSet{
 
 	var $databaseType = "mysqli";
 	var $canSeek = true;
+	// cache for ADO fetch mode when it differs from native mysqli fetch mode
+	var $adodbFetchMode = null;
 
 	function __construct($queryID, $mode = false)
 	{
@@ -913,8 +962,14 @@ class ADORecordSet_mysqli extends ADORecordSet{
 	{
 	global $ADODB_COUNTRECS;
 
-		$this->_numOfRows = $ADODB_COUNTRECS ? @mysqli_num_rows($this->_queryID) : -1;
-		$this->_numOfFields = @mysqli_num_fields($this->_queryID);
+		// Only call mysqli result functions when we actually have a mysqli_result
+		if ($this->_queryID instanceof mysqli_result) {
+			$this->_numOfRows = $ADODB_COUNTRECS ? @mysqli_num_rows($this->_queryID) : -1;
+			$this->_numOfFields = @mysqli_num_fields($this->_queryID);
+		} else {
+			$this->_numOfRows = -1;
+			$this->_numOfFields = 0;
+		}
 	}
 
 /*
@@ -939,6 +994,10 @@ class ADORecordSet_mysqli extends ADORecordSet{
 
 	function FetchField($fieldOffset = -1)
 	{
+		// Ensure we have a mysqli_result before calling mysqli field APIs
+		if (!($this->_queryID instanceof mysqli_result)) {
+			return false;
+		}
 		$fieldnr = $fieldOffset;
 		if ($fieldOffset != -1) {
 			$fieldOffset = @mysqli_field_seek($this->_queryID, $fieldnr);
@@ -993,6 +1052,11 @@ class ADORecordSet_mysqli extends ADORecordSet{
 			return false;
 		}
 
+		// Only seek if we have a valid mysqli_result (avoid passing ints/other types)
+		if (!($this->_queryID instanceof mysqli_result)) {
+			return false;
+		}
+
 		mysqli_data_seek($this->_queryID, $row);
 		$this->EOF = false;
 		return true;
@@ -1003,19 +1067,30 @@ class ADORecordSet_mysqli extends ADORecordSet{
 	{
 	global $ADODB_COUNTRECS;
 
-		mysqli_free_result($this->_queryID);
+		// Free previous result only if it's a mysqli_result
+		if ($this->_queryID instanceof mysqli_result) {
+			mysqli_free_result($this->_queryID);
+		}
 		$this->_queryID = -1;
 		// Move to the next recordset, or return false if there is none. In a stored proc
 		// call, mysqli_next_result returns true for the last "recordset", but mysqli_store_result
 		// returns false. I think this is because the last "recordset" is actually just the
 		// return value of the stored proc (ie the number of rows affected).
-		if(!mysqli_next_result($this->connection->_connectionID)) {
-		return false;
+		// Ensure we have a valid mysqli connection object and connection ID is an object
+		if (!isset($this->connection) || !is_object($this->connection) || !isset($this->connection->_connectionID) || !is_object($this->connection->_connectionID)) {
+			return false;
+		}
+		$link = $this->connection->_connectionID;
+
+		if (!mysqli_next_result($link)) {
+			return false;
 		}
 		// CD: There is no $this->_connectionID variable, at least in the ADO version I'm using
-		$this->_queryID = ($ADODB_COUNTRECS) ? @mysqli_store_result( $this->connection->_connectionID )
-						: @mysqli_use_result( $this->connection->_connectionID );
-		if(!$this->_queryID) {
+		$res = ($ADODB_COUNTRECS) ? @mysqli_store_result($link) : @mysqli_use_result($link);
+		// Only accept a mysqli_result
+		if ($res instanceof mysqli_result) {
+			$this->_queryID = $res;
+		} else {
 			return false;
 		}
 		$this->_inited = false;
@@ -1032,7 +1107,12 @@ class ADORecordSet_mysqli extends ADORecordSet{
 	{
 		if ($this->EOF) return false;
 		$this->_currentRow++;
-		$this->fields = @mysqli_fetch_array($this->_queryID,$this->fetchMode);
+		// Only fetch if we have a mysqli_result
+		if ($this->_queryID instanceof mysqli_result) {
+			$this->fields = @mysqli_fetch_array($this->_queryID,$this->fetchMode);
+		} else {
+			$this->fields = false;
+		}
 
 		if (is_array($this->fields)) {
 			$this->_updatefields();
@@ -1044,9 +1124,14 @@ class ADORecordSet_mysqli extends ADORecordSet{
 
 	function _fetch()
 	{
-		$this->fields = mysqli_fetch_array($this->_queryID,$this->fetchMode);
-		$this->_updatefields();
-		return is_array($this->fields);
+		// Only fetch if we have a mysqli_result
+		if ($this->_queryID instanceof mysqli_result) {
+			$this->fields = mysqli_fetch_array($this->_queryID,$this->fetchMode);
+			$this->_updatefields();
+			return is_array($this->fields);
+		}
+		$this->fields = false;
+		return false;
 	}
 
 	function _close()
@@ -1054,9 +1139,11 @@ class ADORecordSet_mysqli extends ADORecordSet{
 		//if results are attached to this pointer from Stored Proceedure calls, the next standard query will die 2014
 		//only a problem with persistant connections
 
-		if(isset($this->connection->_connectionID) && $this->connection->_connectionID) {
-			while(mysqli_more_results($this->connection->_connectionID)){
-				mysqli_next_result($this->connection->_connectionID);
+		// Ensure connection is an object and connection ID is a mysqli object before calling mysqli_more_results
+		if (isset($this->connection) && is_object($this->connection) && isset($this->connection->_connectionID) && is_object($this->connection->_connectionID)) {
+			$link = $this->connection->_connectionID;
+			while (mysqli_more_results($link)) {
+				mysqli_next_result($link);
 			}
 		}
 

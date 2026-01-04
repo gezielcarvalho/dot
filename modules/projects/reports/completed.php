@@ -24,6 +24,9 @@ $pdf = new Cezpdf($paper='A4',$orientation='landscape');
 $pdf->ezSetCmMargins(1, 2, 1.5, 1.5);
 $pdf->selectFont("$font_dir/Helvetica.afm");
 
+// start page numbers (footer)
+$pdf->ezStartPageNumbers(780,15,8,'right','Page {PAGENUM} of {TOTALPAGENUM}');
+
 $pdf->ezText(safe_utf8_decode(dPgetConfig('company_name')), 12);
 
 $date = new CDate();
@@ -146,7 +149,17 @@ foreach ($tasks as $task_id => $detail) {
 	$row[] = $end_date->format($df);
 }
 
-$pdf->ezTable($pdfdata, $columns, $title, $options);
+if (count($pdfdata)) {
+	$pdf->ezTable($pdfdata, $columns, $title, $options);
+} else {
+	// no data -> create a page and print a friendly centered message
+	$pdf->ezNewPage();
+	$pdf->selectFont("$font_dir/Helvetica-Bold.afm");
+	$pdf->ezText("\n", 12);
+	$pdf->ezText(safe_utf8_decode($AppUI->_('No completed tasks found since')) . " " . $last_week->format($df), 12, array('justification'=>'center'));
+	$pdf->selectFont("$font_dir/Helvetica.afm");
+	$pdf->ezText("\n", 8);
+}
 
 $pdf->ezStream();
 ?>

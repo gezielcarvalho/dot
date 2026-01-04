@@ -6,7 +6,13 @@ if (!empty($_GET['debug'])) {
 */
 @set_time_limit(600);
 
-require_once('../profiler.inc');
+$requirePath = __DIR__ . '/../profiler.php';
+if (file_exists($requirePath)) {
+	require_once($requirePath);
+} else {
+	require_once(__DIR__ . '/../profiler.inc');
+}
+/** @var Profiler $profiler */
 $profiler = new Profiler(true,true);
 
 require_once("gacl_admin.inc.php");
@@ -28,8 +34,9 @@ $rows = $rs->GetRows();
 
 $total_rows = count($rows);
 
-while (list(,$row) = @each(&$rows)) {
-    list(	$aco_section_value,
+// Iterate rows and build ACL test results
+foreach ($rows as $row) {
+	list(    $aco_section_value,
 			$aco_section_name,
 			$aco_value,
 			$aco_name,
@@ -39,13 +46,13 @@ while (list(,$row) = @each(&$rows)) {
 			$aro_value,
 			$aro_name
 		) = $row;
-	
+
 	$acl_check_begin_time = $profiler->getMicroTime();
 	$acl_result = $gacl->acl_query($aco_section_value, $aco_value, $aro_section_value, $aro_value);
 	$acl_check_end_time = $profiler->getMicroTime();
-	
-	$access = &$acl_result['allow'];
-	$return_value = &$acl_result['return_value'];
+
+	$access = $acl_result['allow'];
+	$return_value = $acl_result['return_value'];
 
 	$acl_check_time = ($acl_check_end_time - $acl_check_begin_time) * 100;
 	$total_acl_check_time += $acl_check_time;
@@ -53,27 +60,27 @@ while (list(,$row) = @each(&$rows)) {
 	if ($aco_section_name != $tmp_aco_section_name OR $aco_name != $tmp_aco_name) {
 		$display_aco_name = "$aco_section_name > $aco_name";
 	} else {
-		$display_aco_name = "<br>";	
+		$display_aco_name = "<br>";
 	}
-	
+
 	$acls[] = array(
 						'aco_section_value' => $aco_section_value,
 						'aco_section_name' => $aco_section_name,
 						'aco_value' => $aco_value,
 						'aco_name' => $aco_name,
-						
+
 						'aro_section_value' => $aro_section_value,
 						'aro_section_name' => $aro_section_name,
 						'aro_value' => $aro_value,
 						'aro_name' => $aro_name,
-						
+
 						'access' => $access,
 						'return_value' => $return_value,
 						'acl_check_time' => number_format($acl_check_time, 2),
-						
+
 						'display_aco_name' => $display_aco_name,
 					);
-	
+
 	$tmp_aco_section_name = $aco_section_name;
 	$tmp_aco_name = $aco_name;
 }
@@ -88,6 +95,7 @@ $smarty->assign("total_acl_check_time", $total_acl_check_time);
 if ($total_rows > 0) {
 	$avg_acl_check_time = $total_acl_check_time / $total_rows;
 }
+
 $smarty->assign("avg_acl_check_time", number_format( ($avg_acl_check_time + 0) ,2));
 
 $smarty->assign("paging_data", $gacl_api->get_paging_data($rs));

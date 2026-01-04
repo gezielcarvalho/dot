@@ -11,8 +11,8 @@
  * Doxygen is a documentation generation tool and can be downloaded from http://doxygen.org/
  */
 
-/**
-	\mainpage
+/*
+	mainpage
 
 	@version   v5.20.9  21-Dec-2016
 	@copyright (c) 2000-2013 John Lim (jlim#natsoft.com). All rights reserved.
@@ -35,11 +35,28 @@
  */
 
 if (!defined('_ADODB_LAYER')) {
-	define('_ADODB_LAYER',1);
+	define('_ADODB_LAYER',0);
+
+	/*
+	 * Ensure ADODB_EXTENSION is always defined to avoid "Undefined constant"
+	 * notices in environments where the extension is not present.
+	 */
+	if (!defined('ADODB_EXTENSION')) {
+		define('ADODB_EXTENSION', false);
+	}
+
+	/*
+	 * Ensure ADODB_OUTP is defined to avoid "Undefined constant"
+	 * notices when code references ADODB_OUTP as a constant. Default
+	 * to the application's debug print handler if available.
+	 */
+	if (!defined('ADODB_OUTP')) {
+		define('ADODB_OUTP', 'db_dprint');
+	}
 
 	// The ADOdb extension is no longer maintained and effectively unsupported
 	// since v5.04. The library will not function properly if it is present.
-	if(defined('ADODB_EXTENSION')) {
+	if(defined('ADODB_EXTENSION') && ADODB_EXTENSION && ADODB_EXTENSION < 4.0) {
 		$msg = "Unsupported ADOdb Extension (v" . ADODB_EXTENSION . ") detected! "
 			. "Disable it to use ADOdb";
 
@@ -259,8 +276,20 @@ if (!defined('_ADODB_LAYER')) {
 	 */
 	class ADOFieldObject {
 		var $name = '';
-		var $max_length=0;
-		var $type="";
+		var $max_length = 0;
+		var $type = "";
+		var $scale = 0;
+
+		// Common metadata fields initialised to avoid PHP 8 undefined property notices
+		var $not_null = false;
+		var $primary_key = false;
+		var $auto_increment = false;
+		var $binary = false;
+		var $unsigned = false;
+		var $zerofill = false;
+		var $has_default = false;
+		var $default_value = null;
+		var $enums = array();
 /*
 		// additional fields by dannym... (danny_milo@yahoo.com)
 		var $not_null = false;
@@ -320,6 +349,7 @@ if (!defined('_ADODB_LAYER')) {
 	class ADODB_Cache_File {
 
 		var $createdir = true; // requires creation of temp dirs
+		var $notSafeMode = null; // explicitly declare to avoid undefined property notices
 
 		function __construct() {
 			global $ADODB_INCLUDED_CSV;
@@ -430,7 +460,9 @@ if (!defined('_ADODB_LAYER')) {
 	var $dataProvider = 'native';
 	var $databaseType = '';		/// RDBMS currently in use, eg. odbc, mysql, mssql
 	var $database = '';			/// Name of database to be used.
+		var $databaseName = '';		/// Backwards-compatible alias for database name
 	var $host = '';				/// The hostname of the database server
+	var $port = '';				/// Optional port for the database server
 	var $user = '';				/// The username which is used to connect to the database server.
 	var $password = '';			/// Password for the username. For security, we no longer store it.
 	var $debug = false;			/// if set to true will output sql statements
@@ -449,6 +481,7 @@ if (!defined('_ADODB_LAYER')) {
 	var $charSet=false;			/// character set to use - only for interbase, postgres and oci8
 	var $metaDatabasesSQL = '';
 	var $metaTablesSQL = '';
+	var $metaColumnsSQL = '';
 	var $uniqueOrderBy = false; /// All order by columns have to be unique
 	var $emptyDate = '&nbsp;';
 	var $emptyTimeStamp = '&nbsp;';
@@ -477,6 +510,7 @@ if (!defined('_ADODB_LAYER')) {
 	var $sysDate = false; /// name of function that returns the current date
 	var $sysTimeStamp = false; /// name of function that returns the current timestamp
 	var $sysUTimeStamp = false; // name of function that returns the current timestamp accurate to the microsecond or nearest fraction
+	var $locale = 'En';
 	var $arrayClass = 'ADORecordSet_array'; /// name of class used to generate array recordsets, which are pre-downloaded recordsets
 
 	var $noNullStrings = false; /// oracle specific stuff - if true ensures that '' is converted to ' '
@@ -513,6 +547,10 @@ if (!defined('_ADODB_LAYER')) {
 								/// then returned by the errorMsg() function
 	var $_errorCode = false;	/// Last error code, not guaranteed to be used - only by oci8
 	var $_queryID = false;		/// This variable keeps the last created result link identifier
+	var $_genSeqSQL = '';
+	var $_dropSeqSQL = '';
+	var $_genIDSQL = '';
+    var $_metars = null;
 
 	var $_isPersistentConnection = false;	/// A boolean variable to state whether its a persistent connection or normal connection.	*/
 	var $_bindInputArray = false; /// set to true if ADOConnection.Execute() permits binding of array parameters.
@@ -567,7 +605,7 @@ if (!defined('_ADODB_LAYER')) {
 		return $matches[1];
 	}
 
-	/**
+	/*
 		Get server version info...
 
 		@returns An array with 2 elements: $arr['string'] is the description string,
@@ -692,8 +730,56 @@ if (!defined('_ADODB_LAYER')) {
 		return false;
 	}
 
+	/**
+	 * Fallback connect method used when a driver hasn't provided an implementation.
+	 * Drivers should override this. Returning false indicates failure to connect.
+	 */
+	function _connect($argHostname = '', $argUsername = '', $argPassword = '', $argDatabaseName = '') {
+		return false;
+	}
+
+	/**
+	 * Fallback persistent connect method used when a driver hasn't provided
+	 * an implementation. Drivers should override this; returning false
+	 * indicates failure to connect.
+	 */
+	function _pconnect($argHostname = '', $argUsername = '', $argPassword = '', $argDatabaseName = '') {
+		return false;
+	}
+
+	/**
+	 * Fallback low-level query method used when a driver hasn't provided
+	 * an implementation. Drivers should override this. Returning false
+	 * indicates failure to execute the query.
+	 */
+	function _query($sql, $inputarr = false) {
+		return false;
+	}
+
 	function _nconnect($argHostname, $argUsername, $argPassword, $argDatabaseName) {
 		return $this->_connect($argHostname, $argUsername, $argPassword, $argDatabaseName);
+	}
+
+	/**
+	 * Fallback for drivers that implement insert-id retrieval.
+	 * Drivers that support auto-increment should override this.
+	 *
+	 * @param string $table Optional table name
+	 * @param string $column Optional column name
+	 * @return mixed last insert id or false if unsupported
+	 */
+	function _insertid($table = '', $column = '') {
+		return false;
+	}
+
+	/**
+	 * Fallback for drivers that implement affected-rows retrieval.
+	 * Drivers that support affected-rows should override this.
+	 *
+	 * @return int Number of affected rows (0 if unsupported)
+	 */
+	function _affectedrows() {
+		return 0;
 	}
 
 
@@ -1037,7 +1123,7 @@ if (!defined('_ADODB_LAYER')) {
 	}
 
 
-	/**
+	/*
 		Used together with StartTrans() to end a transaction. Monitors connection
 		for sql errors, and will commit or rollback as appropriate.
 
@@ -1089,7 +1175,7 @@ if (!defined('_ADODB_LAYER')) {
 		$this->_transOK = false;
 	}
 
-	/**
+	/*
 		Check if transaction has failed, only for Smart Transactions.
 	*/
 	function HasFailedTrans() {
@@ -1162,37 +1248,35 @@ if (!defined('_ADODB_LAYER')) {
 				unset($element0);
 
 				foreach($inputarr as $arr) {
-					$sql = ''; $i = 0;
-					//Use each() instead of foreach to reduce memory usage -mikefedyk
-					while(list(, $v) = each($arr)) {
-						$sql .= $sqlarr[$i];
-						// from Ron Baldwin <ron.baldwin#sourceprose.com>
-						// Only quote string types
-						$typ = gettype($v);
-						if ($typ == 'string') {
-							//New memory copy of input created here -mikefedyk
-							$sql .= $this->qstr($v);
-						} else if ($typ == 'double') {
-							$sql .= str_replace(',','.',$v); // locales fix so 1.1 does not get converted to 1,1
-						} else if ($typ == 'boolean') {
-							$sql .= $v ? $this->true : $this->false;
-						} else if ($typ == 'object') {
-							if (method_exists($v, '__toString')) {
-								$sql .= $this->qstr($v->__toString());
+						$sql = ''; $i = 0;
+						// Use foreach instead of each() for PHP 8 compatibility
+						foreach ($arr as $v) {
+							$sql .= $sqlarr[$i];
+							// Only quote string types
+							$typ = gettype($v);
+							if ($typ == 'string') {
+								$sql .= $this->qstr($v);
+							} else if ($typ == 'double') {
+								$sql .= str_replace(',','.',$v); // locales fix so 1.1 does not get converted to 1,1
+							} else if ($typ == 'boolean') {
+								$sql .= $v ? $this->true : $this->false;
+							} else if ($typ == 'object') {
+								if (is_object($v) && method_exists($v, '__toString')) {
+									$sql .= $this->qstr($v->__toString());
+								} else {
+									$sql .= $this->qstr((string) $v);
+								}
+							} else if ($v === null) {
+								$sql .= 'NULL';
 							} else {
-								$sql .= $this->qstr((string) $v);
+								$sql .= $v;
 							}
-						} else if ($v === null) {
-							$sql .= 'NULL';
-						} else {
-							$sql .= $v;
-						}
-						$i += 1;
+							$i += 1;
 
-						if ($i == $nparams) {
-							break;
-						}
-					} // while
+							if ($i == $nparams) {
+								break;
+							}
+						} // foreach
 					if (isset($sqlarr[$i])) {
 						$sql .= $sqlarr[$i];
 						if ($i+1 != sizeof($sqlarr)) {
@@ -1456,8 +1540,8 @@ if (!defined('_ADODB_LAYER')) {
 		if (sizeof($p)) {
 			return $p;
 		}
-		if (function_exists('ADODB_VIEW_PRIMARYKEYS')) {
-			return ADODB_VIEW_PRIMARYKEYS($this->databaseType, $this->database, $table, $owner);
+		if (is_callable('ADODB_VIEW_PRIMARYKEYS')) {
+			return call_user_func('ADODB_VIEW_PRIMARYKEYS', $this->databaseType, $this->database, $table, $owner);
 		}
 		return false;
 	}
@@ -2397,6 +2481,14 @@ if (!defined('_ADODB_LAYER')) {
 	}
 
 	/**
+	 * Default connection close fallback for drivers.
+	 * Drivers can override this as needed.
+	 */
+	function _close() {
+		return true;
+	}
+
+	/**
 	 * Begin a Transaction. Must be followed by CommitTrans() or RollbackTrans().
 	 *
 	 * @return true if succeeded or false if database does not support transactions
@@ -2760,20 +2852,20 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 
 	function BindDate($d) {
 		$d = $this->DBDate($d);
-		if (strncmp($d,"'",1)) {
+		if (!is_string($d) || strncmp($d, "'", 1) !== 0) {
 			return $d;
 		}
 
-		return substr($d,1,strlen($d)-2);
+		return substr($d, 1, strlen($d) - 2);
 	}
 
 	function BindTimeStamp($d) {
 		$d = $this->DBTimeStamp($d);
-		if (strncmp($d,"'",1)) {
+		if (!is_string($d) || strncmp($d, "'", 1) !== 0) {
 			return $d;
 		}
 
-		return substr($d,1,strlen($d)-2);
+		return substr($d, 1, strlen($d) - 2);
 	}
 
 
@@ -3065,20 +3157,26 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 			$this->rs = $rs;
 		}
 
+		#[\ReturnTypeWillChange]
 		function rewind() {}
 
+
+		#[\ReturnTypeWillChange]
 		function valid() {
 			return !$this->rs->EOF;
 		}
 
+		#[\ReturnTypeWillChange]
 		function key() {
 			return false;
 		}
 
+		#[\ReturnTypeWillChange]
 		function current() {
 			return false;
 		}
 
+		#[\ReturnTypeWillChange]
 		function next() {}
 
 		function __call($func, $params) {
@@ -3130,6 +3228,7 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 
 		function Init() {}
 
+		#[\ReturnTypeWillChange]
 		function getIterator() {
 			return new ADODB_Iterator_empty($this);
 		}
@@ -3190,22 +3289,27 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 			$this->rs = $rs;
 		}
 
+		#[\ReturnTypeWillChange]
 		function rewind() {
 			$this->rs->MoveFirst();
 		}
 
+		#[\ReturnTypeWillChange]
 		function valid() {
 			return !$this->rs->EOF;
 		}
 
+		#[\ReturnTypeWillChange]
 		function key() {
 			return $this->rs->_currentRow;
 		}
 
+		#[\ReturnTypeWillChange]
 		function current() {
 			return $this->rs->fields;
 		}
 
+		#[\ReturnTypeWillChange]
 		function next() {
 			$this->rs->MoveNext();
 		}
@@ -3282,6 +3386,7 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 		$this->Close();
 	}
 
+	#[\ReturnTypeWillChange]
 	function getIterator() {
 		return new ADODB_Iterator($this);
 	}
@@ -3290,6 +3395,34 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 	function __toString() {
 		include_once(ADODB_DIR.'/toexport.inc.php');
 		return _adodb_export($this,',',',',false,true);
+	}
+
+	/**
+	 * Default initializer for recordsets. Drivers may override this.
+	 */
+	function _initrs() {
+		$this->_numOfRows = 0;
+		$this->_numOfFields = 0;
+	}
+
+	/**
+	 * Default fetch implementation for recordsets. Drivers should override.
+	 * @return bool
+	 */
+	function _fetch() {
+		return false;
+	}
+
+	/**
+	 * Default seek implementation for recordsets. Drivers supporting
+	 * random access should override this. Return true if the row is
+	 * available after seeking, false otherwise.
+	 *
+	 * @param int $rowNumber 0-based row number to seek to
+	 * @return bool
+	 */
+	function _seek($rowNumber) {
+		return false;
 	}
 
 	function Init() {
@@ -3327,7 +3460,7 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 	 * @param [size]		#rows to show for listbox. not used by popup
 	 * @param [selectAttr]		additional attributes to defined for SELECT tag.
 	 *				useful for holding javascript onChange='...' handlers.
-	 & @param [compareFields0]	when we have 2 cols in recordset, we compare the defstr with
+	 * @param [compareFields0]	when we have 2 cols in recordset, we compare the defstr with
 	 *				column 0 (1st col) if this is true. This is not documented.
 	 *
 	 * @return HTML
@@ -3381,10 +3514,15 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 	 * @return an array indexed by the rows (0-based) from the recordset
 	 */
 	function GetArray($nRows = -1) {
-		global $ADODB_EXTENSION; if ($ADODB_EXTENSION) {
-		$results = adodb_getall($this,$nRows);
-		return $results;
-	}
+		global $ADODB_EXTENSION;
+		// Prefer the compiled extension helper only if explicitly enabled
+		// and the helper is actually callable. Some deployments may not
+		// have the adodb_getall helper available which would cause a
+		// fatal "undefined function" error if invoked directly.
+		if (!empty($ADODB_EXTENSION) && is_callable('adodb_getall')) {
+			$results = adodb_getall($this, $nRows);
+			return $results;
+		}
 		$results = array();
 		$cnt = 0;
 		while (!$this->EOF && $nRows != $cnt) {
@@ -3478,7 +3616,10 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 		}
 
 		// Determine whether the array is associative or 0-based numeric
-		$numIndex = array_keys($this->fields) == range(0, count($this->fields) - 1);
+		// Cast to array to satisfy static analysis when `$this->fields`
+		// may be boolean (e.g. false) for empty recordsets.
+		$flds = (array)$this->fields;
+		$numIndex = array_keys($flds) == range(0, count($flds) - 1);
 
 		$results = array();
 
@@ -3486,40 +3627,44 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 			if ($ADODB_EXTENSION) {
 				if ($numIndex) {
 					while (!$this->EOF) {
-						$results[trim($this->fields[0])] = array_slice($this->fields, 1);
+						$flds = (array)$this->fields;
+						$results[trim($flds[0])] = array_slice($flds, 1);
 						adodb_movenext($this);
 					}
 				} else {
 					while (!$this->EOF) {
 					// Fix for array_slice re-numbering numeric associative keys
-						$keys = array_slice(array_keys($this->fields), 1);
+						$flds = (array)$this->fields;
+						$keys = array_slice(array_keys($flds), 1);
 						$sliced_array = array();
 
 						foreach($keys as $key) {
-							$sliced_array[$key] = $this->fields[$key];
+							$sliced_array[$key] = $flds[$key];
 						}
 
-						$results[trim(reset($this->fields))] = $sliced_array;
+						$results[trim(reset($flds))] = $sliced_array;
 						adodb_movenext($this);
 					}
 				}
 			} else {
 				if ($numIndex) {
 					while (!$this->EOF) {
-						$results[trim($this->fields[0])] = array_slice($this->fields, 1);
+						$flds = (array)$this->fields;
+						$results[trim($flds[0])] = array_slice($flds, 1);
 						$this->MoveNext();
 					}
 				} else {
 					while (!$this->EOF) {
 					// Fix for array_slice re-numbering numeric associative keys
-						$keys = array_slice(array_keys($this->fields), 1);
+						$flds = (array)$this->fields;
+						$keys = array_slice(array_keys($flds), 1);
 						$sliced_array = array();
 
 						foreach($keys as $key) {
-							$sliced_array[$key] = $this->fields[$key];
+							$sliced_array[$key] = $flds[$key];
 						}
 
-						$results[trim(reset($this->fields))] = $sliced_array;
+						$results[trim(reset($flds))] = $sliced_array;
 						$this->MoveNext();
 					}
 				}
@@ -3536,8 +3681,9 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 				} else {
 					while (!$this->EOF) {
 					// some bug in mssql PHP 4.02 -- doesn't handle references properly so we FORCE creating a new string
-						$v1 = trim(reset($this->fields));
-						$v2 = ''.next($this->fields);
+						$flds = (array)$this->fields;
+						$v1 = trim(reset($flds));
+						$v2 = ''.next($flds);
 						$results[$v1] = $v2;
 						adodb_movenext($this);
 					}
@@ -3552,8 +3698,9 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 				} else {
 					while (!$this->EOF) {
 					// some bug in mssql PHP 4.02 -- doesn't handle references properly so we FORCE creating a new string
-						$v1 = trim(reset($this->fields));
-						$v2 = ''.next($this->fields);
+						$flds = (array)$this->fields;
+						$v1 = trim(reset($flds));
+						$v2 = ''.next($flds);
 						$results[$v1] = $v2;
 						$this->MoveNext();
 					}
@@ -3883,13 +4030,18 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 		$record = array();
 		$this->GetAssocKeys($upper);
 
-		foreach($this->bind as $k => $v) {
-			if( array_key_exists( $v, $this->fields ) ) {
-				$record[$k] = $this->fields[$v];
-			} elseif( array_key_exists( $k, $this->fields ) ) {
-				$record[$k] = $this->fields[$k];
+		// Cast to arrays to satisfy static analysis / avoid warnings when
+		// `$this->bind` or `$this->fields` may be boolean (e.g. false).
+		$bind = (array)$this->bind;
+		$fields = (array)$this->fields;
+
+		foreach ($bind as $k => $v) {
+			if (array_key_exists($v, $fields)) {
+				$record[$k] = $fields[$v];
+			} elseif (array_key_exists($k, $fields)) {
+				$record[$k] = $fields[$k];
 			} else {
-				# This should not happen... trigger error ?
+				// This should not happen... trigger error ?
 				$record[$k] = null;
 			}
 		}
@@ -3952,14 +4104,18 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 
 		$lnumrows = $this->_numOfRows;
 		// the database doesn't support native recordcount, so we do a workaround
-		if ($lnumrows == -1 && $this->connection) {
+		if ($lnumrows == -1 && is_object($this->connection)) {
 			IF ($table) {
 				if ($condition) {
 					$condition = " WHERE " . $condition;
 				}
 				$resultrows = $this->connection->Execute("SELECT COUNT(*) FROM $table $condition");
-				if ($resultrows) {
-					$lnumrows = reset($resultrows->fields);
+				// Ensure we received a recordset-like object before accessing ->fields.
+				// Help static analyzers: inside the guarded block `$resultrows` is an object.
+				/** @var object $resultrows */
+				if (is_object($resultrows) && isset($resultrows->fields)) {
+					$fieldsArr = (array)$resultrows->fields;
+					$lnumrows = reset($fieldsArr);
 				}
 			}
 		}
@@ -4304,7 +4460,10 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 		$arr = array();
 
 		// Change the case
-		foreach($this->fields as $k => $v) {
+		// Cast to array to satisfy static analysis when `$this->fields` may be boolean
+		$fields = (array)$this->fields;
+		/** @var array $fields */
+		foreach ($fields as $k => $v) {
 			if (!is_integer($k)) {
 				$k = $fn_change_case($k);
 			}
@@ -4368,6 +4527,9 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 	{
 		var $databaseType = 'array';
 
+		// Backwards-compat property used in Fields()
+		var $adodbFetchMode = null;
+
 		var $_array;	// holds the 2-dimensional data array
 		var $_types;	// the array of types of each column (C B I L M)
 		var $_colnames;	// names of each column in array
@@ -4411,14 +4573,20 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 
 			$this->_fieldobjects = array();
 
-			foreach($hdr as $k => $name) {
+			// Ensure $hdr is iterable for static analysis (may be boolean true)
+			$hdr = (array)$hdr;
+			/** @var array $hdr */
+			foreach ($hdr as $k => $name) {
 				$f = new ADOFieldObject();
 				$f->name = $name;
 				$f->type = $this->_types[$k];
 				$f->max_length = -1;
 				$this->_fieldobjects[] = $f;
 			}
-			$this->fields = reset($this->_array);
+			// Cast $_array to array to ensure reset() receives an array
+			$arr0 = (array)$this->_array;
+			/** @var array $arr0 */
+			$this->fields = reset($arr0);
 
 			$this->_initrs();
 

@@ -15,9 +15,9 @@ $tblwidth = isset($tblwidth) ? $tblwidth :'100%';
 $chmod = 0777;
 
 function dPgetIniSize($val) {
-   $val = trim($val);
-   if (mb_strlen($val <= 1)) return $val;
-   $last = $val{mb_strlen($val)-1};
+  $val = trim($val);
+  if (mb_strlen($val) <= 1) return $val;
+  $last = $val[mb_strlen($val)-1];
    switch($last) {
        case 'k':
        case 'K':

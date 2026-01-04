@@ -69,6 +69,22 @@ class Exception {
 }
 
 class Assert {
+  /**
+   * Placeholder fail() method so static analyzers recognize it.
+   * Actual test harness (TestCase) overrides this with behavior.
+   */
+  function fail($message=0) {
+    // no-op; overridden in TestCase
+  }
+
+  /**
+   * Placeholder error() method so static analyzers recognize it.
+   * Actual test harness (TestCase) overrides this with behavior.
+   */
+  function error($message=0) {
+    // no-op; overridden in TestCase
+  }
+
   function assert($boolean, $message=0) {
     if (! $boolean)
       $this->fail($message);
@@ -118,8 +134,8 @@ class Assert {
 
   function assertEqualsMultilineStrings($string0, $string1,
   $message="") {
-    $lines0 = split("\n",$string0);
-    $lines1 = split("\n",$string1);
+    $lines0 = explode("\n", $string0);
+    $lines1 = explode("\n", $string1);
     if (sizeof($lines0) != sizeof($lines1)) {
       $this->failNotEquals(sizeof($lines0)." line(s)",
                            sizeof($lines1)." line(s)", "expected", $message);
@@ -201,7 +217,7 @@ class TestCase extends Assert /* implements Test */ {
     if (! $testResult)
       $testResult = $this->_createResult();
     $this->fResult = $testResult;
-    $testResult->run(&$this);
+    $testResult->run($this);
     $this->fResult = 0;
     return $testResult;
   }
@@ -221,7 +237,7 @@ class TestCase extends Assert /* implements Test */ {
   function runTest() {
     if (phpversion() >= '4') {
 	global $PHPUnit_testRunning;
-	eval('$PHPUnit_testRunning[0] = & $this;');
+  eval('$PHPUnit_testRunning[0] = $this;');
 	// Saved ref to current TestCase, so that the error handler
 	// can access it.  This code won't even parse in PHP3, so we
 	// hide it in an eval.
@@ -264,30 +280,28 @@ class TestCase extends Assert /* implements Test */ {
     //printf("TestCase::fail(%s)<br>\n", ($message) ? $message : '');
     /* JUnit throws AssertionFailedError here.  We just record the
        failure and carry on */
-    $this->fExceptions[] = new Exception(&$message, 'FAILURE');
+    $this->fExceptions[] = new Exception($message, 'FAILURE');
   }
 
-  function error($message) {
+  function error($message = 0) {
     /* report error that requires correction in the test script
        itself, or (heaven forbid) in this testing infrastructure */
-    $this->fExceptions[] = new Exception(&$message, 'ERROR');
+    $this->fExceptions[] = new Exception($message, 'ERROR');
     $this->fResult->stop();	// [does not work]
   }
 
   function failed() {
-      reset($this->fExceptions);
-      while (list($key, $exception) = each($this->fExceptions)) {
-	  if ($exception->type == 'FAILURE')
-	      return true;
-      }
+        foreach ($this->fExceptions as $key => $exception) {
+          if ($exception->type == 'FAILURE')
+            return true;
+        }
       return false;
   }
   function errored() {
-      reset($this->fExceptions);
-      while (list($key, $exception) = each($this->fExceptions)) {
-	  if ($exception->type == 'ERROR')
-	      return true;
-      }
+        foreach ($this->fExceptions as $key => $exception) {
+          if ($exception->type == 'ERROR')
+            return true;
+        }
       return false;
   }
 
@@ -337,7 +351,7 @@ class TestSuite /* implements Test */ {
       // PHP4 introspection, submitted by Dylan Kuhn
 
       $names = get_class_methods($classname);
-      while (list($key, $method) = @each($names)) {
+      foreach ($names as $key => $method) {
         if (preg_match('/^test/', $method)) {
           $test = new $classname($method);
           if (strcasecmp($method, $classname) == 0 || is_subclass_of($test, $method)) {
@@ -357,7 +371,7 @@ class TestSuite /* implements Test */ {
     else {  // PHP3
       $dummy = new $classname("dummy");
       $names = (array) $dummy;
-      while (list($key, $value) = each($names)) {
+      foreach ($names as $key => $value) {
         $type = gettype($value);
         if ($type == "user function" && preg_match('/^test/', $key)
         && $key != "testcase") {  
@@ -375,11 +389,10 @@ class TestSuite /* implements Test */ {
   function run(&$testResult) {
     /* Run all TestCases and TestSuites comprising this TestSuite,
        accumulating results in the given TestResult object. */
-    reset($this->fTests);
-    while (list($na, $test) = each($this->fTests)) {
+    foreach ($this->fTests as $na => $test) {
       if ($testResult->shouldStop())
-	break;
-      $test->run(&$testResult);
+    break;
+      $test->run($testResult);
     }
   }
 
@@ -387,8 +400,7 @@ class TestSuite /* implements Test */ {
     /* Number of TestCases comprising this TestSuite (including those
        in any constituent TestSuites) */
     $count = 0;
-    reset($fTests);
-    while (list($na, $test_case) = each($this->fTests)) {
+    foreach ($this->fTests as $na => $test_case) {
       $count += $test_case->countTestCases();
     }
     return $count;
@@ -436,11 +448,11 @@ class TestResult {
   }
 
   function addError($test, $exception) {
-      $this->fErrors[] = new TestFailure(&$test, &$exception);
+      $this->fErrors[] = new TestFailure($test, $exception);
   }
 
   function addFailure($test, $exception) {
-      $this->fFailures[] = new TestFailure(&$test, &$exception);
+      $this->fFailures[] = new TestFailure($test, $exception);
   }
 
   function getFailures() {
@@ -456,12 +468,11 @@ class TestResult {
 
     /* this is where JUnit would catch AssertionFailedError */
     $exceptions = $test->getExceptions();
-    reset($exceptions);
-    while (list($key, $exception) = each($exceptions)) {
-	if ($exception->type == 'ERROR')
-	    $this->addError($test, $exception);
-	else if ($exception->type == 'FAILURE')
-	    $this->addFailure($test, $exception);
+    foreach ($exceptions as $key => $exception) {
+      if ($exception->type == 'ERROR')
+        $this->addError($test, $exception);
+      else if ($exception->type == 'FAILURE')
+        $this->addFailure($test, $exception);
     }
     //    if ($exceptions)
     //      $this->fFailures[] = new TestFailure(&$test, &$exceptions);
@@ -517,32 +528,32 @@ class TextTestResult extends TestResult {
 	print("<h2>Failures</h2>");
 	print("<ol>\n");
 	$failures = $this->getFailures();
-	while (list($i, $failure) = each($failures)) {
-	    $failedTestName = $failure->getTestName();
-	    printf("<li>%s\n", $failedTestName);
+  foreach ($failures as $i => $failure) {
+    $failedTestName = $failure->getTestName();
+    printf("<li>%s\n", $failedTestName);
 
-	    $exceptions = $failure->getExceptions();
-	    print("<ul>");
-	    while (list($na, $exception) = each($exceptions))
-		printf("<li>%s\n", $exception->getMessage());
-	    print("</ul>");
-	}
+    $exceptions = $failure->getExceptions();
+    print("<ul>");
+    foreach ($exceptions as $na => $exception) {
+      printf("<li>%s\n", $exception->getMessage());
+    }
+    print("</ul>");
+    }
 	print("</ol>\n");
     }
 
     if ($nErrors > 0) {
 	print("<h2>Errors</h2>");
 	print("<ol>\n");
-	reset($this->fErrors);
-	while (list($i, $error) = each($this->fErrors)) {
-	    $erroredTestName = $error->getTestName();
-	    printf("<li>%s\n", $failedTestName);
+  foreach ($this->fErrors as $i => $error) {
+    $erroredTestName = $error->getTestName();
+    printf("<li>%s\n", $failedTestName);
 
-	    $exception = $error->getException();
-	    print("<ul>");
-	    printf("<li>%s\n", $exception->getMessage());
-	    print("</ul>");
-	}
+    $exception = $error->getException();
+    print("<ul>");
+    printf("<li>%s\n", $exception->getMessage());
+    print("</ul>");
+  }
 	print("</ol>\n");
 
     }
@@ -594,14 +605,15 @@ class PrettyTestResult extends TestResult {
 	echo "<h2>Failure Details</h2>";
     print("<ol>\n");
     $failures = $this->getFailures();
-    while (list($i, $failure) = each($failures)) {
+    foreach ($failures as $i => $failure) {
       $failedTestName = $failure->getTestName();
       printf("<li>%s\n", $failedTestName);
 
       $exceptions = $failure->getExceptions();
       print("<ul>");
-      while (list($na, $exception) = each($exceptions))
-	printf("<li>%s\n", $exception->getMessage());
+      foreach ($exceptions as $na => $exception) {
+        printf("<li>%s\n", $exception->getMessage());
+      }
       print("</ul>");
     }
     print("</ol>\n");

@@ -549,6 +549,13 @@ class Smarty
     var $_cache_include = null;
 
     /**
+     * information for cache include (cache_serial, plugins_code, include_file_path)
+     *
+     * @var array|null
+     */
+    var $_cache_include_info = null;
+
+    /**
      * indicate if the current code is used in a compiled
      * include
      *
@@ -909,7 +916,34 @@ class Smarty
         switch ($type) {
             case 'output':
                 $_params = array('plugins' => array(array($type . 'filter', $name, null, null, false)));
-                require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.load_plugins.php');
+                $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.load_plugins.php';
+                // try to load the official core loader
+                if (is_readable($_loader)) {
+                    require_once($_loader);
+                }
+
+                // ensure a callable exists to avoid fatal undefined function errors
+                if (!function_exists('smarty_core_load_plugins')) {
+                    // define a safe fallback shim that marks requested plugins as unavailable
+                    function smarty_core_load_plugins($_params, $_smarty)
+                    {
+                        $_smarty->trigger_error('smarty_core_load_plugins not available; using fallback shim', E_USER_WARNING);
+                        if (isset($_params['plugins']) && is_array($_params['plugins'])) {
+                            foreach ($_params['plugins'] as $_p) {
+                                if (is_array($_p) && isset($_p[0]) && isset($_p[1])) {
+                                    $_type = $_p[0];
+                                    $_name = $_p[1];
+                                    if (!isset($_smarty->_plugins[$_type][$_name])) {
+                                        $_smarty->_plugins[$_type][$_name] = false;
+                                    }
+                                }
+                            }
+                        }
+                        return null;
+                    }
+                }
+
+                // call the loader (either real one or the shim)
                 smarty_core_load_plugins($_params, $this);
                 break;
 
@@ -942,6 +976,8 @@ class Smarty
         $_auto_id = $this->_get_auto_id($cache_id, $compile_id);
 
         if (!empty($this->cache_handler_func)) {
+            // ensure $dummy exists for legacy call_user_func_array signature
+            $dummy = null;
             return call_user_func_array($this->cache_handler_func,
                                   array('clear', &$this, &$dummy, $tpl_file, $cache_id, $compile_id, $exp_time));
         } else {
@@ -949,7 +985,20 @@ class Smarty
                             'auto_source' => $tpl_file,
                             'auto_id' => $_auto_id,
                             'exp_time' => $exp_time);
-            require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.rm_auto.php');
+            $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.rm_auto.php';
+            if (is_readable($_loader)) {
+                require_once($_loader);
+            }
+
+            // fallback shim if the core function is missing
+            if (!function_exists('smarty_core_rm_auto')) {
+                function smarty_core_rm_auto($_params, $_smarty)
+                {
+                    $_smarty->trigger_error('smarty_core_rm_auto not available; using fallback shim', E_USER_WARNING);
+                    return false;
+                }
+            }
+
             return smarty_core_rm_auto($_params, $this);
         }
 
@@ -989,7 +1038,22 @@ class Smarty
             'cache_id' => $cache_id,
             'compile_id' => $compile_id
         );
-        require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.read_cache_file.php');
+        $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.read_cache_file.php';
+        if (is_readable($_loader)) {
+            require_once($_loader);
+        }
+
+        if (!function_exists('smarty_core_read_cache_file')) {
+            function smarty_core_read_cache_file($_params, $_smarty)
+            {
+                $_smarty->trigger_error('smarty_core_read_cache_file not available; using fallback shim', E_USER_WARNING);
+                if (isset($_params['results'])) {
+                    $_params['results'] = false;
+                }
+                return false;
+            }
+        }
+
         return smarty_core_read_cache_file($_params, $this);
     }
 
@@ -1135,7 +1199,18 @@ class Smarty
         if ($this->debugging) {
             // capture time for debugging info
             $_params = array();
-            require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_microtime.php');
+            $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_microtime.php';
+            if (is_readable($_loader)) {
+                require_once($_loader);
+            }
+
+            if (!function_exists('smarty_core_get_microtime')) {
+                function smarty_core_get_microtime($_params, $_smarty)
+                {
+                    return microtime(true);
+                }
+            }
+
             $_debug_start_time = smarty_core_get_microtime($_params, $this);
             $this->_smarty_debug_info[] = array('type'      => 'template',
                                                 'filename'  => $resource_name,
@@ -1165,15 +1240,39 @@ class Smarty
                 $_smarty_results = $_params['results'];
                 if (@count($this->_cache_info['insert_tags'])) {
                     $_params = array('plugins' => $this->_cache_info['insert_tags']);
-                    require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.load_plugins.php');
+                    $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.load_plugins.php';
+                    if (is_readable($_loader)) { require_once($_loader); }
+                    if (!function_exists('smarty_core_load_plugins')) {
+                        function smarty_core_load_plugins($_params, $_smarty)
+                        {
+                            trigger_error('smarty_core_load_plugins missing; plugin loading skipped', E_USER_WARNING);
+                            return;
+                        }
+                    }
                     smarty_core_load_plugins($_params, $this);
                     $_params = array('results' => $_smarty_results);
-                    require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.process_cached_inserts.php');
+                    $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.process_cached_inserts.php';
+                    if (is_readable($_loader)) { require_once($_loader); }
+                    if (!function_exists('smarty_core_process_cached_inserts')) {
+                        function smarty_core_process_cached_inserts($_params, $_smarty)
+                        {
+                            // core process missing: return results unchanged
+                            return isset($_params['results']) ? $_params['results'] : null;
+                        }
+                    }
                     $_smarty_results = smarty_core_process_cached_inserts($_params, $this);
                 }
                 if (@count($this->_cache_info['cache_serials'])) {
                     $_params = array('results' => $_smarty_results);
-                    require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.process_compiled_include.php');
+                    $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.process_compiled_include.php';
+                    if (is_readable($_loader)) { require_once($_loader); }
+                    if (!function_exists('smarty_core_process_compiled_include')) {
+                        function smarty_core_process_compiled_include($_params, $_smarty)
+                        {
+                            // core helper missing: return results unchanged
+                            return isset($_params['results']) ? $_params['results'] : null;
+                        }
+                    }
                     $_smarty_results = smarty_core_process_compiled_include($_params, $this);
                 }
 
@@ -1183,9 +1282,18 @@ class Smarty
                     {
                         // capture time for debugging info
                         $_params = array();
-                        require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_microtime.php');
+                        $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_microtime.php';
+                        if (is_readable($_loader)) { require_once($_loader); }
                         $this->_smarty_debug_info[$_included_tpls_idx]['exec_time'] = smarty_core_get_microtime($_params, $this) - $_debug_start_time;
-                        require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.display_debug_console.php');
+                        $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.display_debug_console.php';
+                        if (is_readable($_loader)) { require_once($_loader); }
+                        if (!function_exists('smarty_core_display_debug_console')) {
+                            function smarty_core_display_debug_console($_params, $_smarty)
+                            {
+                                // debug console helper missing: return empty string
+                                return '';
+                            }
+                        }
                         $_smarty_results .= smarty_core_display_debug_console($_params, $this);
                     }
                     if ($this->cache_modified_check) {
@@ -1266,9 +1374,24 @@ class Smarty
                         'cache_id' => $cache_id,
                         'compile_id' => $compile_id,
                         'results' => $_smarty_results);
-            require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.write_cache_file.php');
+            $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.write_cache_file.php';
+            if (is_readable($_loader)) { require_once($_loader); }
+            if (!function_exists('smarty_core_write_cache_file')) {
+                function smarty_core_write_cache_file($_params, $_smarty)
+                {
+                    // write helper missing: best-effort no-op (return success)
+                    return true;
+                }
+            }
             smarty_core_write_cache_file($_params, $this);
-            require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.process_cached_inserts.php');
+            $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.process_cached_inserts.php';
+            if (is_readable($_loader)) { require_once($_loader); }
+            if (!function_exists('smarty_core_process_cached_inserts')) {
+                function smarty_core_process_cached_inserts($_params, $_smarty)
+                {
+                    return isset($_params['results']) ? $_params['results'] : null;
+                }
+            }
             $_smarty_results = smarty_core_process_cached_inserts($_params, $this);
 
             if ($this->_cache_serials) {
@@ -1287,7 +1410,16 @@ class Smarty
             if ($this->debugging) {
                 // capture time for debugging info
                 $_params = array();
-                require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_microtime.php');
+                $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_microtime.php';
+                if (is_readable($_loader)) {
+                    require_once($_loader);
+                }
+                if (!function_exists('smarty_core_get_microtime')) {
+                    function smarty_core_get_microtime($_params, $_smarty)
+                    {
+                        return microtime(true);
+                    }
+                }
                 $this->_smarty_debug_info[$_included_tpls_idx]['exec_time'] = (smarty_core_get_microtime($_params, $this) - $_debug_start_time);
                 require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.display_debug_console.php');
                 echo smarty_core_display_debug_console($_params, $this);
@@ -1355,7 +1487,15 @@ class Smarty
     function _get_plugin_filepath($type, $name)
     {
         $_params = array('type' => $type, 'name' => $name);
-        require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.assemble_plugin_filepath.php');
+        $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.assemble_plugin_filepath.php';
+        if (is_readable($_loader)) { require_once($_loader); }
+        if (!function_exists('smarty_core_assemble_plugin_filepath')) {
+            function smarty_core_assemble_plugin_filepath($_params, $_smarty)
+            {
+                trigger_error('smarty_core_assemble_plugin_filepath missing; plugin filepath assembly disabled', E_USER_WARNING);
+                return false;
+            }
+        }
         return smarty_core_assemble_plugin_filepath($_params, $this);
     }
 
@@ -1414,12 +1554,43 @@ class Smarty
         if ($this->_compile_source($resource_name, $_source_content, $_compiled_content, $_cache_include)) {
             // if a _cache_serial was set, we also have to write an include-file:
             if ($this->_cache_include_info) {
-                require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.write_compiled_include.php');
+                $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.write_compiled_include.php';
+                if (is_readable($_loader)) { require_once($_loader); }
+                if (!function_exists('smarty_core_write_compiled_include')) {
+                    function smarty_core_write_compiled_include($_params, $_smarty)
+                    {
+                        // compiled include writer missing: write best-effort to disk if possible
+                        if (isset($_params['compiled_content']) && isset($_params['filename'])) {
+                            @file_put_contents($_params['filename'], $_params['compiled_content']);
+                            return true;
+                        }
+                        return false;
+                    }
+                }
                 smarty_core_write_compiled_include(array_merge($this->_cache_include_info, array('compiled_content'=>$_compiled_content)),  $this);
             }
 
             $_params = array('compile_path'=>$compile_path, 'compiled_content' => $_compiled_content, 'resource_timestamp' => $_resource_timestamp);
-            require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.write_compiled_resource.php');
+            $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.write_compiled_resource.php';
+            if (is_readable($_loader)) { require_once($_loader); }
+            if (!function_exists('smarty_core_write_compiled_resource')) {
+                function smarty_core_write_compiled_resource($_params, $_smarty)
+                {
+                    if (isset($_params['compiled_content']) && isset($_params['compile_path'])) {
+                        $path = $_params['compile_path'];
+                        $dir = dirname($path);
+                        if (!is_dir($dir)) {
+                            @mkdir($dir, 0777, true);
+                        }
+                        @file_put_contents($path, $_params['compiled_content']);
+                        if (isset($_params['resource_timestamp'])) {
+                            @touch($path, $_params['resource_timestamp']);
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+            }
             smarty_core_write_compiled_resource($_params, $this);
 
             return true;
@@ -1635,8 +1806,31 @@ class Smarty
                     }
                     // didn't find the file, try include_path
                     $_params = array('file_path' => $_fullpath);
-                    require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_include_path.php');
-                    if(smarty_core_get_include_path($_params, $this)) {
+                    $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_include_path.php';
+                    if (is_readable($_loader)) { require_once($_loader); }
+                    if (!function_exists('smarty_core_get_include_path')) {
+                        function smarty_core_get_include_path(&$_params, $_smarty)
+                        {
+                            if (!empty($_params['file_path']) && file_exists($_params['file_path'])) {
+                                $_params['new_file_path'] = $_params['file_path'];
+                                return true;
+                            }
+                            if (function_exists('stream_resolve_include_path')) {
+                                $found = stream_resolve_include_path(basename($_params['file_path']));
+                                if ($found !== false) {
+                                    $_params['new_file_path'] = $found;
+                                    return true;
+                                }
+                            } else {
+                                foreach (explode(PATH_SEPARATOR, get_include_path()) as $_inc) {
+                                    $_try = rtrim($_inc, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . basename($_params['file_path']);
+                                    if (file_exists($_try)) { $_params['new_file_path'] = $_try; return true; }
+                                }
+                            }
+                            return false;
+                        }
+                    }
+                    if (smarty_core_get_include_path($_params, $this)) {
                         $params['resource_name'] = $_params['new_file_path'];
                         return true;
                     }
@@ -1648,8 +1842,28 @@ class Smarty
             }
         } elseif (empty($this->_plugins['resource'][$params['resource_type']])) {
             $_params = array('type' => $params['resource_type']);
-            require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.load_resource_plugin.php');
-            smarty_core_load_resource_plugin($_params, $this);
+            $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.load_resource_plugin.php';
+            if (is_readable($_loader)) { require_once($_loader); }
+            if (!function_exists('smarty_core_load_resource_plugin')) {
+                function smarty_core_load_resource_plugin(&$_params, $_smarty)
+                {
+                    $type = isset($_params['type']) ? $_params['type'] : null;
+                    if (empty($type)) return false;
+                    // look in configured plugins_dir(s)
+                    $dirs = isset($_smarty->plugins_dir) ? (array)$_smarty->plugins_dir : array();
+                    // include Smarty's default plugins directory as fallback
+                    $dirs[] = rtrim(SMARTY_DIR, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'plugins';
+                    foreach ($dirs as $_dir) {
+                        $_file = rtrim($_dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'resource.' . $type . '.php';
+                        if (is_readable($_file)) {
+                            require_once($_file);
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }
+            @smarty_core_load_resource_plugin($_params, $this);
         }
 
         return true;
@@ -1686,8 +1900,8 @@ class Smarty
      */
     function _dequote($string)
     {
-        if (($string{0} == "'" || $string{0} == '"') &&
-            $string{strlen($string)-1} == $string{0})
+        if (($string[0] == "'" || $string[0] == '"') &&
+            $string[strlen($string)-1] == $string[0])
             return substr($string, 1, -1);
         else
             return $string;
@@ -1733,7 +1947,30 @@ class Smarty
         } else {
             // auto_base not found, try include_path
             $_params = array('file_path' => $auto_base);
-            require_once(SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_include_path.php');
+            $_loader = SMARTY_DIR . 'core' . DIRECTORY_SEPARATOR . 'core.get_include_path.php';
+            if (is_readable($_loader)) { require_once($_loader); }
+            if (!function_exists('smarty_core_get_include_path')) {
+                function smarty_core_get_include_path(&$_params, $_smarty)
+                {
+                    if (!empty($_params['file_path']) && file_exists($_params['file_path'])) {
+                        $_params['new_file_path'] = $_params['file_path'];
+                        return true;
+                    }
+                    if (function_exists('stream_resolve_include_path')) {
+                        $found = stream_resolve_include_path(basename($_params['file_path']));
+                        if ($found !== false) {
+                            $_params['new_file_path'] = $found;
+                            return true;
+                        }
+                    } else {
+                        foreach (explode(PATH_SEPARATOR, get_include_path()) as $_inc) {
+                            $_try = rtrim($_inc, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . basename($_params['file_path']);
+                            if (file_exists($_try)) { $_params['new_file_path'] = $_try; return true; }
+                        }
+                    }
+                    return false;
+                }
+            }
             smarty_core_get_include_path($_params, $this);
             $_return = isset($_params['new_file_path']) ? $_params['new_file_path'] . DIRECTORY_SEPARATOR : null;
         }

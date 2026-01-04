@@ -10,6 +10,8 @@ $log_start_date = dPgetCleanParam($_POST, 'log_start_date', 0);
 $log_end_date = dPgetCleanParam($_POST, 'log_end_date', 0);
 $use_assigned_percentage = (int)dPgetParam($_POST, 'use_assigned_percentage', 0);
 $user_id = (int)dPgetParam($_POST, 'user_id', $AppUI->user_id);
+// Initialize checkboxes/flags to avoid undefined variable notices
+$log_all_projects = (int)dPgetParam($_POST, 'log_all_projects', 0);
 
 // create Date objects from the datetime fields
 $start_date = intval($log_start_date) ? new CDate($log_start_date) : new CDate(date('Y-m-01'));
@@ -19,6 +21,7 @@ $end_date->setTime(23, 59, 59);
 ?>
 
 <form name="editFrm" action="index.php?m=projects&a=reports" method="post">
+	<input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>" />
 <input type="hidden" name="project_id" value="<?php echo $project_id;?>" />
 <input type="hidden" name="report_category" value="<?php echo $report_category;?>" />
 <input type="hidden" name="report_type" value="<?php echo $report_type;?>" />
