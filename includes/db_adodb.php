@@ -18,7 +18,33 @@ require_once(DP_BASE_DIR.'/lib/adodb/adodb.inc.php');
 $db = NewADOConnection(dPgetConfig('dbtype'));
 $GLOBALS['ADODB_OUTP'] = 'db_dprint';
 
-function db_connect($host='localhost', $dbname, $user='root', $passwd='', $persist=false) {
+// Configure MySQL SSL options if provided
+// Supported modes: DISABLED, REQUIRED, VERIFY_CA, VERIFY_IDENTITY
+$sslCa = dPgetConfig('mysql_ssl_ca', '');
+$sslMode = strtoupper(dPgetConfig('mysql_ssl_mode', ''));
+if ($sslCa || $sslMode) {
+    // Attach properties to the ADODB connection object for driver to use
+    $db->ssl_ca = $sslCa;
+    $db->ssl_mode = $sslMode;
+
+    // Set clientFlags to request SSL (driver will pass clientFlags to mysqli_real_connect)
+    if (defined('MYSQLI_CLIENT_SSL')) {
+        $db->clientFlags = (isset($db->clientFlags) ? $db->clientFlags : 0) | MYSQLI_CLIENT_SSL;
+    }
+
+    // If a verification mode is requested, attempt to enable server cert verification via mysqli options
+    if (in_array($sslMode, array('VERIFY_CA', 'VERIFY_IDENTITY'))) {
+        if (defined('MYSQLI_OPT_SSL_VERIFY_SERVER_CERT')) {
+            // Add to optionFlags to be applied before real_connect
+            $db->optionFlags[] = array(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, true);
+        }
+        // Mark for driver-level check
+        $db->ssl_verify = true;
+    }
+}
+
+
+function db_connect($host='localhost', $dbname = '', $user='root', $passwd='', $persist=false) {
 	global $db, $ADODB_FETCH_MODE;
 	
 	$ret_val = (($persist) ? $db->PConnect($host, $user, $passwd, $dbname) 
