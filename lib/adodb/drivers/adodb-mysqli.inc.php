@@ -60,6 +60,9 @@ class ADODB_mysqli extends ADOConnection {
 	var $_bindInputArray = false;
 	var $nameQuote = '`';		/// string to use to quote identifiers and names
 	var $optionFlags = array(array(MYSQLI_READ_DEFAULT_GROUP,0));
+	/* SSL options (declare to avoid undefined property notices) */
+	var $ssl_ca = '';
+	var $ssl_verify = false;
 	var $arrayClass = 'ADORecordSet_array_mysqli';
 	var $multiQuery = false;
 
@@ -112,6 +115,22 @@ class ADODB_mysqli extends ADOConnection {
 		if (is_object($this->_connectionID)) {
 			foreach($this->optionFlags as $arr) {
 				@mysqli_options($this->_connectionID,$arr[0],$arr[1]);
+			}
+
+			// If an SSL CA was provided via the connection object, set it now so mysqli_real_connect will use it
+			if (!empty($this->ssl_ca)) {
+				if (is_file($this->ssl_ca)) {
+					@mysqli_ssl_set($this->_connectionID, NULL, NULL, $this->ssl_ca, NULL, NULL);
+					if ($this->debug) ADOConnection::outp("Using MySQL SSL CA: {$this->ssl_ca}");
+				} else {
+					if ($this->debug) ADOConnection::outp("MySQL SSL CA file not found: {$this->ssl_ca}");
+				}
+			}
+
+			// If ssl_verify flag present, ensure mysqli will verify server cert when supported
+			if (!empty($this->ssl_verify) && defined('MYSQLI_OPT_SSL_VERIFY_SERVER_CERT')) {
+				@mysqli_options($this->_connectionID, MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, true);
+				if ($this->debug) ADOConnection::outp("Enabled MYSQLI_OPT_SSL_VERIFY_SERVER_CERT");
 			}
 		}
 
