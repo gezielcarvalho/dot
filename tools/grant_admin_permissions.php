@@ -10,6 +10,15 @@
  */
 
 define('DP_BASE_DIR', dirname(__DIR__));
+
+// Provide minimal bootstrap values when running from CLI so
+// includes/config.php doesn't emit undefined variable warnings.
+$baseDir = DP_BASE_DIR;
+$baseUrl = '';
+
+// Load core functions first so dPgetConfig() is available to db_adodb.php
+require_once DP_BASE_DIR . '/includes/main_functions.php';
+// Load configuration (populates $dPconfig) and DB connection
 require_once DP_BASE_DIR . '/includes/config.php';
 require_once DP_BASE_DIR . '/includes/db_connect.php';
 

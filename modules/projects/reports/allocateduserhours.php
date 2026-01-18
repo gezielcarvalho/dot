@@ -83,11 +83,11 @@ if ($do_report) {
 	$q->addTable('user_tasks', 'ut');
 	$q->addTable('projects', 'p');
 	$q->addQuery('t.*, ut.*, p.project_name');
-	$q->addWhere('(task_start_date BETWEEN "' . $start_date->format(FMT_DATETIME_MYSQL) 
-				 . '" AND "' . $end_date->format(FMT_DATETIME_MYSQL) 
-				 . '" OR task_end_date BETWEEN "' . $start_date->format(FMT_DATETIME_MYSQL) 
-				 . '" AND "' . $end_date->format(FMT_DATETIME_MYSQL) 
-				 . '" OR (task_start_date <= "' . $start_date->format(FMT_DATETIME_MYSQL) 
+$q->addWhere('(task_start_date IS NOT NULL AND task_start_date != "" AND task_start_date != "0000-00-00 00:00:00" AND task_start_date BETWEEN "' . $start_date->format(FMT_DATETIME_MYSQL) 
+					 . '" AND "' . $end_date->format(FMT_DATETIME_MYSQL) 
+					 . '" OR (task_end_date IS NOT NULL AND task_end_date != "" AND task_end_date != "0000-00-00 00:00:00" AND task_end_date BETWEEN "' . $start_date->format(FMT_DATETIME_MYSQL) 
+					 . '" AND "' . $end_date->format(FMT_DATETIME_MYSQL) 
+					 . '" ) OR (task_start_date <= "' . $start_date->format(FMT_DATETIME_MYSQL) 
 				 . '" AND task_end_date >= "' . $end_date->format(FMT_DATETIME_MYSQL) . '"))');
 	$q->addWhere('task_end_date IS NOT NULL');
 	$q->addWhere("task_end_date != '0000-00-00 00:00:00'");

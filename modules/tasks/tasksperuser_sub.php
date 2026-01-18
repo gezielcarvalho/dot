@@ -214,9 +214,8 @@ if ($do_report) {
 	}
 	$sql->addQuery('t.*');
 	if ($use_period) {
-		$sql->addWhere("((task_start_date >= '$ss' AND task_start_date <= '$se') "
-			." OR (task_end_date <= '$se' AND task_end_date >= '$ss'))");
-	}
+		$sql->addWhere("((task_start_date IS NOT NULL AND task_start_date != '0000-00-00 00:00:00' AND task_start_date >= '$ss' AND task_start_date <= '$se') "
+				." OR (task_end_date IS NOT NULL AND task_end_date != '0000-00-00 00:00:00' AND task_end_date <= '$se' AND task_end_date >= '$ss'))");
 	
 	$sql->addWhere('task_percent_complete < 100');
 	if ($project_id != 'all') {

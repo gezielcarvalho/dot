@@ -415,6 +415,19 @@ class DBQuery {
 		case 'create':	// Create a temporary table
 	        $s = $this->prepareSelect();
 			$q = 'CREATE TEMPORARY TABLE ' . $this->_table_prefix . $this->create_table;
+			// If the server requires PRIMARY KEYs (sql_require_primary_key=1), inject a simple auto-increment PK
+			if (empty($this->create_definition)) {
+				try {
+					global $db;
+					$requirePK = intval(@$db->GetOne("SELECT @@SESSION.sql_require_primary_key AS v"));
+				} catch (Exception $e) {
+					$requirePK = 0;
+				}
+				if ($requirePK) {
+					// Use an auto-increment primary key so CREATE ... SELECT will succeed and rows will be populated
+					$this->create_definition = "(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY)";
+				}
+			}
 			if (!empty($this->create_definition)) {
 				$q .= ' ' . $this->create_definition;
 			}
@@ -426,6 +439,18 @@ class DBQuery {
 		case 'createPermanent':	// Create a temporary table
 			$s = $this->prepareSelect();
 			$q = 'CREATE TABLE ' . $this->_table_prefix . $this->create_table;
+			// If server enforces PRIMARY KEYs, ensure created tables include a PK definition when none provided
+			if (empty($this->create_definition)) {
+				try {
+					global $db;
+					$requirePK = intval(@$db->GetOne("SELECT @@SESSION.sql_require_primary_key AS v"));
+				} catch (Exception $e) {
+					$requirePK = 0;
+				}
+				if ($requirePK) {
+					$this->create_definition = "(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY)";
+				}
+			}
 			if (!empty($this->create_definition)) {
 				$q .= ' ' . $this->create_definition;
 			}
@@ -875,11 +900,27 @@ class DBQuery {
 			return $result;
 		}
 
+		// Normalize and ignore empty or direction-only entries which produce invalid SQL like "ORDER BY DESC"
 		if (is_array($order_clause)) {
-			$started = false;
-			$result = ' ORDER BY ' . implode(',', $order_clause);
-		} else if (mb_strlen($order_clause) > 0) {
-			$result = " ORDER BY $order_clause";	
+			$entries = array();
+			foreach ($order_clause as $entry) {
+				$s = trim($entry);
+				// skip empty strings and entries that are only ASC/DESC
+				if ($s === '' || preg_match('/^\b(?:ASC|DESC)\b$/i', $s)) {
+					continue;
+				}
+				$entries[] = $s;
+			}
+			if (count($entries) === 0) {
+				return '';
+			}
+			$result = ' ORDER BY ' . implode(',', $entries);
+		} else if (mb_strlen(trim($order_clause)) > 0) {
+			$s = trim($order_clause);
+			if (preg_match('/^\b(?:ASC|DESC)\b$/i', $s)) {
+				return '';
+			}
+			$result = " ORDER BY $s";	
 		}
 		return $result;
 	}

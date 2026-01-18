@@ -105,8 +105,8 @@ if ($do_report) {
 	$query->leftJoin('projects', 'p', 'p.project_id = t.task_project');
 	$query->addQuery('t.*');
 	if ($use_period) {
-		$query->addWhere("((task_start_date >= '$ss' AND task_start_date <= '$se') "
-		                 . " OR (task_end_date <= '$se' AND task_end_date >= '$ss'))");
+		$query->addWhere("((task_start_date IS NOT NULL AND task_start_date != '0000-00-00 00:00:00' AND task_start_date >= '$ss' AND task_start_date <= '$se') "
+					 . " OR (task_end_date IS NOT NULL AND task_end_date != '0000-00-00 00:00:00' AND task_end_date <= '$se' AND task_end_date >= '$ss'))");
 	}
 	
 	if ($project_id) {
@@ -199,24 +199,23 @@ if ($do_report) {
 			}
 ?>
 		</tr>
-<?php
-			$actual_date = $start_date;
-			foreach ($task_list as $task) {
-				if ($task->task_id == $task->task_parent 
-					&& isMemberOfTask($task_list, $task_assigned_users, $user_id, $task)) {
-						echo (displayTask($task_list, $task, 0, $display_week_hours, $sss, $sse, 
-								($project_id == 0)));
-						// Get children
-						echo (doChildren($task_list, $task_assigned_users, $task->task_id, 
-								$user_id, 1, $max_levels, $display_week_hours, $sss, $sse, 
-								($project_id == 0)));
+		<?php
+					$actual_date = $start_date;
+					foreach ($task_list as $task) {
+						if ($task->task_id == $task->task_parent 
+							&& isMemberOfTask($task_list, $task_assigned_users, $user_id, $task)) {
+								echo (displayTask($task_list, $task, 0, $display_week_hours, $sss, $sse, 
+										($project_id == 0)));
+								// Get children
+								echo (doChildren($task_list, $task_assigned_users, $task->task_id, 
+										$user_id, 1, $max_levels, $display_week_hours, $sss, $sse, 
+										($project_id == 0)));
+						}
+					}
 				}
 			}
 		}
-	}
-}
-
-?>
+		?>
 	</table>
 </center>
 

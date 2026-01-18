@@ -214,8 +214,9 @@ CREATE TABLE `%dbprefix%forums` (
 #
 CREATE TABLE `%dbprefix%forum_watch` (
   `watch_user` int(10) unsigned NOT NULL default '0',
-  `watch_forum` int(10) unsigned default NULL,
-  `watch_topic` int(10) unsigned default NULL,
+  `watch_forum` int(10) unsigned NOT NULL default '0',
+  `watch_topic` int(10) unsigned NOT NULL default '0',
+	PRIMARY KEY (`watch_user`, `watch_forum`, `watch_topic`),
 	KEY `idx_fw1` (`watch_user`, `watch_forum`),
 	KEY `idx_fw2` (`watch_user`, `watch_topic`)
 ) COMMENT='Links users to the forums/messages they are watching';
@@ -227,6 +228,7 @@ CREATE TABLE `%dbprefix%forum_visits` (
   `visit_forum` INT(10) NOT NULL DEFAULT 0,
   `visit_message` INT(10) NOT NULL DEFAULT 0,
   `visit_date` TIMESTAMP,
+  PRIMARY KEY (`visit_user`, `visit_forum`, `visit_message`),
   KEY `idx_fv` (`visit_user`, `visit_forum`, `visit_message`)
 ) ;
 
@@ -277,12 +279,14 @@ CREATE TABLE `%dbprefix%projects` (
 
 CREATE TABLE `%dbprefix%project_contacts` (
   `project_id` INT(10) NOT NULL,
-  `contact_id` INT(10) NOT NULL
+  `contact_id` INT(10) NOT NULL,
+  PRIMARY KEY (`project_id`, `contact_id`)
 ) ;
 
 CREATE TABLE `%dbprefix%project_departments` (
   `project_id` INT(10) NOT NULL,
-  `department_id` INT(10) NOT NULL
+  `department_id` INT(10) NOT NULL,
+  PRIMARY KEY (`project_id`, `department_id`)
 ) ;
 
 CREATE TABLE `%dbprefix%task_log` (
@@ -341,12 +345,14 @@ CREATE TABLE `%dbprefix%tasks` (
 CREATE TABLE `%dbprefix%task_contacts` (
   `task_id` INT(10) NOT NULL,
   `contact_id` INT(10) NOT NULL,
+  PRIMARY KEY (`task_id`, `contact_id`),
   KEY `idx_task_contacts` (`task_id`)
 ) ;
 
 CREATE TABLE `%dbprefix%task_departments` (
   `task_id` INT(10) NOT NULL,
   `department_id` INT(10) NOT NULL,
+  PRIMARY KEY (`task_id`, `department_id`),
   KEY `idx_task_departments` (`task_id`)
 ) ;
 
@@ -375,6 +381,7 @@ CREATE TABLE `%dbprefix%tickets` (
 CREATE TABLE `%dbprefix%user_events` (
 	`user_id` int(11) NOT NULL default '0',
 	`event_id` int(11) NOT NULL default '0',
+	PRIMARY KEY (`user_id`, `event_id`),
 	KEY `uek1` (`user_id`, `event_id`),
 	KEY `uek2` (`event_id`, `user_id`)
 ) ;
@@ -417,6 +424,7 @@ CREATE TABLE `%dbprefix%user_preferences` (
   `pref_user` varchar(12) NOT NULL default '',
   `pref_name` varchar(72) NOT NULL default '',
   `pref_value` varchar(32) NOT NULL default '',
+  PRIMARY KEY (`pref_user`, `pref_name`),
   KEY `pref_user` (`pref_user`,`pref_name`)
 ) ;
 
@@ -557,7 +565,8 @@ CREATE TABLE `%dbprefix%roles` (
 
 CREATE TABLE `%dbprefix%user_roles` (
   `user_id` int(10) unsigned NOT NULL default '0',
-  `role_id` int(10) unsigned NOT NULL default '0'
+  `role_id` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY (`user_id`, `role_id`)
 );
 
 # Host: localhost
@@ -782,7 +791,7 @@ field_description varchar(250)
 );
 
 CREATE TABLE `%dbprefix%custom_fields_values` (
-value_id integer,
+value_id integer PRIMARY KEY AUTO_INCREMENT,
 value_module varchar(30),
 value_object_id integer,
 value_field_id integer,
@@ -792,9 +801,10 @@ KEY `idx_cfv_id` (`value_id`)
 );
 
 CREATE TABLE `%dbprefix%custom_fields_lists` (
-field_id integer,
-list_option_id integer,
-list_value varchar(250)
+field_id integer NOT NULL,
+list_option_id integer NOT NULL,
+list_value varchar(250),
+PRIMARY KEY (field_id, list_option_id)
 );
 
 
@@ -1203,8 +1213,75 @@ VALUES
 (2, 0, 3, 4, 'System', 'sys'),
 (3, 0, 5, 6, 'Modules', 'mod');
 
+# Populate common AXO entries (applications) so admin can be granted permissions without extra steps
+INSERT INTO `%dbprefix%gacl_axo` (id, section_value, value, order_value, name, hidden) VALUES
+(1, 'sys', 'acl', 1, 'ACL Administration', 0),
+(2, 'app', 'admin', 1, 'User Administration', 0),
+(3, 'app', 'calendar', 2, 'Calendar', 0),
+(4, 'app', 'events', 3, 'Events', 0),
+(5, 'app', 'companies', 4, 'Companies', 0),
+(6, 'app', 'contacts', 5, 'Contacts', 0),
+(7, 'app', 'departments', 6, 'Departments', 0),
+(8, 'app', 'files', 7, 'Files', 0),
+(9, 'app', 'file_folders', 8, 'File Folders', 0),
+(10, 'app', 'forums', 9, 'Forums', 0),
+(11, 'app', 'help', 10, 'Help', 0),
+(12, 'app', 'projects', 11, 'Projects', 0),
+(13, 'app', 'system', 12, 'System Administration', 0),
+(14, 'app', 'tasks', 13, 'Tasks', 0),
+(15, 'app', 'task_log', 14, 'Task Logs', 0),
+(16, 'app', 'ticketsmith', 15, 'Tickets', 0),
+(17, 'app', 'public', 16, 'Public', 0),
+(18, 'app', 'roles', 17, 'Roles Administration', 0),
+(19, 'app', 'users', 18, 'User Table', 0)
+ON DUPLICATE KEY UPDATE name=VALUES(name), order_value=VALUES(order_value), hidden=VALUES(hidden);
 
-#
+
+# ------------------------------------------------------------------
+# ADODB / phpGACL sequence helper tables
+# Ensure each helper table exists and is seeded to the max existing id of the target table
+# This avoids GenID duplicate-key errors on fresh installs
+# ------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_acl_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_acl_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_acl` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_acl_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_aco_sections_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_aco_sections_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_aco_sections` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_aco_sections_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_aco_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_aco_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_aco` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_aco_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_aro_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_aro_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_aro` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_aro_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_aro_sections_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_aro_sections_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_aro_sections` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_aro_sections_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_axo_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_axo_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_axo` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_axo_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_axo_sections_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_axo_sections_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_axo_sections` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_axo_sections_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_aro_groups_id_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_aro_groups_id_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_aro_groups` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_aro_groups_id_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_axo_groups_id_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_axo_groups_id_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_axo_groups` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_axo_groups_id_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_role_groups_id_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_role_groups_id_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_aro_groups` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_role_groups_id_seq`);
+
+CREATE TABLE IF NOT EXISTS `%dbprefix%gacl_mod_groups_id_seq` ( `id` INT NOT NULL PRIMARY KEY ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `%dbprefix%gacl_mod_groups_id_seq` (`id`) SELECT COALESCE(MAX(id),0) FROM `%dbprefix%gacl_axo_groups` WHERE NOT EXISTS (SELECT 1 FROM `%dbprefix%gacl_mod_groups_id_seq`);
+
+# ------------------------------------------------------------------
+# Ensure admin user has full permissions (populate dotpermissions from gacl mapping)
+# NOTE: dotpermissions table is created later in this file; the INSERT is executed after the table creation to ensure proper ordering.
+# ------------------------------------------------------------------
+# (INSERT statement moved to after the dotpermissions table CREATE block)
+
+# ------------------------------------------------------------------
 # Table structure for table `sessions`
 #
 
@@ -1227,7 +1304,8 @@ CREATE TABLE %dbprefix%dpversion (
 	code_version varchar(10) not null default '',
 	db_version integer not null default '0',
 	last_db_update date not null default '0000-00-00',
-	last_code_update date not null default '0000-00-00'
+	last_code_update date not null default '0000-00-00',
+	PRIMARY KEY (code_version)
 );
 
 INSERT INTO %dbprefix%dpversion VALUES ('2.1.8', 2, '2013-01-05', '2013-07-27');
@@ -1256,6 +1334,7 @@ CREATE TABLE `%dbprefix%file_folders` (
 
 DROP TABLE IF EXISTS `%dbprefix%dotpermissions`;
 CREATE TABLE `%dbprefix%dotpermissions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `acl_id` int(11) NOT NULL DEFAULT '0',
   `user_id` varchar(80) NOT NULL DEFAULT '',
   `section` varchar(80) NOT NULL DEFAULT '',
@@ -1264,8 +1343,21 @@ CREATE TABLE `%dbprefix%dotpermissions` (
   `allow` int(11) NOT NULL DEFAULT '0',
   `priority` int(11) NOT NULL DEFAULT '0',
   `enabled` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`,`section`,`permission`,`axo`)
 );
+
+# Populate full admin permissions from GACL mappings (idempotent)
+INSERT INTO `%dbprefix%dotpermissions` (acl_id,user_id,section,axo,permission,allow,priority,enabled)
+SELECT 0, '1', axo.section_value, axo.value, aco.value, 1, 1, 1
+FROM `%dbprefix%gacl_axo` axo
+CROSS JOIN `%dbprefix%gacl_aco` aco
+WHERE NOT EXISTS (
+    SELECT 1 FROM `%dbprefix%dotpermissions` dp
+    WHERE dp.user_id = '1' AND dp.section = axo.section_value
+      AND dp.axo = axo.value AND dp.permission = aco.value
+)
+GROUP BY axo.section_value, axo.value, aco.value;
 
 # 20101216
 # Manage contacts properly

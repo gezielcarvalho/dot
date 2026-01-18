@@ -1448,6 +1448,7 @@ class CTitleBlock_core {
 
 		if ((is_array($this->crumbs) && count($this->crumbs)) || (is_array($this->cells2) && count($this->cells2))) {
 			$crumbs = array();
+			$this->crumbs = (array)$this->crumbs;
 			foreach ($this->crumbs as $k => $v) {
 				$t = (($v[1]) ? ('<img src="' . dPfindImage($v[1], $this->module) 
 				                 . '" border="" alt="" />&nbsp;') : '');

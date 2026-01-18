@@ -76,7 +76,7 @@ if (dPgetParam($_REQUEST, "showdetails", 0) == 1) {
 	if ($user_id != 0) { $q->addWhere("ual.user_id='$user_id'"); }
 	$q->addWhere("ual.date_time_in >='$start_date'");
 	$q->addWhere("ual.date_time_out <='$end_date'");
-	$q->addGroup('ual.date_time_last_action DESC');
+	$q->addGroup('ual.date_time_last_action');
 	$logs = $q->loadList();
 ?>
 <table align="center" class="tbl" width="50%">

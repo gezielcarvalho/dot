@@ -66,6 +66,8 @@ $q->addQuery('contact_id, contact_order_by');
 $q->addQuery('contact_first_name, contact_last_name, contact_phone, contact_owner');
 $q->addQuery($showfields);
 $q->addQuery('user_id');
+// Build the WHERE filter safely
+$where_filter = '';
 foreach ($search_map as $search_name) {
 	$where_filter .= (' OR ' . $search_name . " LIKE $where");
 }
@@ -101,12 +103,13 @@ $t = floor($rn / $carrWidth); //total "height"
 $r = ($rn % $carrWidth); // remainder column height
 $t += (($r == 0 && $t > 0) ? 0 : 1);
 
-$carr[] = array();
+// Initialize columns as empty arrays to avoid PHP 8 count(null) TypeError
+$carr = array_fill(0, $carrWidth, array());
 $x = 0;
 foreach ($disp_arr as $row) {
 	$y = floor($x / $t);
 	$carr[$y][] = $row;
-	$x++;	
+	$x++;
 }
 
 $tdw = floor(100 / $carrWidth);
