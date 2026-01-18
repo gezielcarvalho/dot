@@ -39,6 +39,32 @@ if ($rs) { // Won't work in install mode.
 		}
 		$dPconfig[$c['config_name']] = $c['config_value'];
 	}
+
+	// Allow environment variables to override mail configuration loaded from DB
+	// Useful when the DB contains defaults (like 'php'/'localhost') but we want to force SMTP to MailHog in containers
+	if (getenv('MAIL_TRANSPORT') !== false) {
+		$dPconfig['mail_transport'] = getenv('MAIL_TRANSPORT');
+	}
+	if (getenv('MAIL_HOST') !== false) {
+		$dPconfig['mail_host'] = getenv('MAIL_HOST');
+	}
+	if (getenv('MAIL_PORT') !== false) {
+		$dPconfig['mail_port'] = getenv('MAIL_PORT');
+	}
+	if (getenv('MAIL_AUTH') !== false) {
+		$val = strtolower(getenv('MAIL_AUTH'));
+		$dPconfig['mail_auth'] = in_array($val, array('1','true','yes','on')) ? true : false;
+	}
+	if (getenv('MAIL_USER') !== false) {
+		$dPconfig['mail_user'] = getenv('MAIL_USER');
+	}
+	if (getenv('MAIL_PASS') !== false) {
+		$dPconfig['mail_pass'] = getenv('MAIL_PASS');
+	}
+	if (getenv('MAIL_SMTP_TLS') !== false) {
+		$val = strtolower(getenv('MAIL_SMTP_TLS'));
+		$dPconfig['mail_smtp_tls'] = in_array($val, array('1','true','yes','on')) ? true : false;
+	}
 }
 
 

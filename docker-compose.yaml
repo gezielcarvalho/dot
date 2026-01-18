@@ -15,6 +15,14 @@ services:
       - DB_NAME=${DB_NAME}
       - MYSQL_SSL_CA=${MYSQL_SSL_CA}
       - MYSQL_SSL_MODE=${MYSQL_SSL_MODE}
+      # Mail settings (can override DB values)
+      - MAIL_TRANSPORT=${MAIL_TRANSPORT:-smtp}
+      - MAIL_HOST=${MAIL_HOST:-mailhog}
+      - MAIL_PORT=${MAIL_PORT:-1025}
+      - MAIL_AUTH=${MAIL_AUTH:-false}
+      - MAIL_USER=${MAIL_USER:-}
+      - MAIL_PASS=${MAIL_PASS:-}
+      - MAIL_SMTP_TLS=${MAIL_SMTP_TLS:-false}
     networks:
       - app
 
