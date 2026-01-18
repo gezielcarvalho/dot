@@ -391,7 +391,22 @@ function db_insertObject($table, &$object, $keyName = NULL, $verbose=false) {
 */
 function db_updateObject($table, &$object, $keyName, $updateNulls=true, $descriptionField = NULL) {
 	global $AppUI;
-	$perms =& $AppUI->acl();
+	// Safely obtain permissions/ACL object: try method, property, or alternative getter
+	$perms = null;
+	if (is_object($AppUI)) {
+		// Prefer explicit getter if available and fall back to callable method or property
+		if (method_exists($AppUI, 'getAcl') && is_callable(array($AppUI, 'getAcl'))) {
+			$perms = call_user_func(array($AppUI, 'getAcl'));
+		} elseif (method_exists($AppUI, 'acl') && is_callable(array($AppUI, 'acl'))) {
+			$perms = call_user_func(array($AppUI, 'acl'));
+		} else {
+			// Avoid direct property access on potentially undefined properties to prevent notices
+			$vars = get_object_vars($AppUI);
+			if (array_key_exists('acl', $vars) && is_object($vars['acl'])) {
+				$perms = $vars['acl'];
+			}
+		}
+	}
 	
 	//TODO: If DBQuery exists use it
 	$dbprefix = dPgetConfig('dbprefix','');
@@ -518,8 +533,7 @@ function bindHashToObject($hash, &$obj, $prefix=NULL, $checkSlashes=true, $bindA
 	
 	foreach ($hash as $k => $v) {
 		if (is_object($hash[$k])) {
-			$error_str .= ('bindHashToObject : non-object expected for hash value with key ' 
-			               . $k . "\n");
+			$error_str = 'bindHashToObject : non-object expected for hash value with key ' . $k . "\n";
 			die ($error_str);
 		}
 	}

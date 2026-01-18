@@ -41,8 +41,10 @@ $prev_week = new CDate(Date_calc::beginOfPrevWeek($dd, $mm, $yy,
 $next_week = new CDate(Date_calc::beginOfNextWeek($dd, $mm, $yy, 
                                                   FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY));
 
-$tasks = CTask::getTasksForPeriod($first_time, $last_time, $company_id);
-$events = CEvent::getEventsForPeriod($first_time, $last_time);
+$taskObj = new CTask();
+$tasks = $taskObj->getTasksForPeriod($first_time, $last_time, $company_id);
+$eventObj = new CEvent();
+$events = $eventObj->getEventsForPeriod($first_time, $last_time);
 
 $links = array();
 
