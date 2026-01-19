@@ -37,6 +37,50 @@ if (!$log_start_date) {
 	$start_date->subtractSpan(new Date_Span('14,0,0,0'));
 }
 $end_date->setTime(23, 59, 59);
+
+// Helpers to render repetitive HTML blocks more readably
+function render_ass_form_start($user_id, $label)
+{
+	ob_start();
+	?>
+	<tr>
+		<td style="background: #D0D0D0; color: #000000; font-weight: bold;" nowrap="nowrap">
+			<form name="assFrm<?php echo (int)$user_id; ?>" action="index.php?m=tasks&a=tasksperuser" method="post">
+			<input type="hidden" name="del" value="1" />
+			<input type="hidden" name="rm" value="0" />
+			<input type="hidden" name="store" value="0" />
+			<input type="hidden" name="dosql" value="do_task_assign_aed" />
+			<input type="hidden" name="user_id" value="<?php echo (int)$user_id; ?>" />
+			<input type="hidden" name="hassign" />
+			<input type="hidden" name="htasks" />
+			<input onclick="javascript:checkAll('<?php echo (int)$user_id; ?>');" type="checkbox" name="master" value="true"/>
+		</td>
+		<td colspan="6" style="background: #D0D0D0; color: #000000; font-weight: bold;" nowrap="nowrap">
+			<a href="index.php?m=calendar&amp;a=day_view&amp;user_id=<?php echo (int)$user_id; ?>&amp;tab=1"><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></a>
+		</td>
+	<?php
+	return ob_get_clean();
+}
+
+function render_empty_week_cells($display_week_hours, $from, $to)
+{
+	$out = '';
+	$wx = weekCells($display_week_hours, $from, $to);
+	for ($w = 0; $w <= $wx; $w++) {
+		$out .= "\t\t\t<td style=\"background: #D0D0D0;\">&nbsp;</td>\n";
+	}
+	return $out;
+}
+
+function render_percentage_options($selected = 30)
+{
+	$out = '';
+	for ($i = 0; $i <= 100; $i += 5) {
+		$sel = ($i == $selected) ? ' selected="selected"' : '';
+		$out .= "\t\t\t\t\t\t<option value=\"$i\"$sel>$i%</option>\n";
+	}
+	return $out;
+}
 ?>
 
 <script language="javascript">
@@ -216,7 +260,8 @@ if ($do_report) {
 	if ($use_period) {
 		$sql->addWhere("((task_start_date IS NOT NULL AND task_start_date != '0000-00-00 00:00:00' AND task_start_date >= '$ss' AND task_start_date <= '$se') "
 				." OR (task_end_date IS NOT NULL AND task_end_date != '0000-00-00 00:00:00' AND task_end_date <= '$se' AND task_end_date >= '$ss'))");
-	
+	}
+
 	$sql->addWhere('task_percent_complete < 100');
 	if ($project_id != 'all') {
 		$sql->addWhere('t.task_project = \''. $project_id . '\'');
@@ -254,7 +299,7 @@ if ($do_report) {
 		foreach (array_keys($task_users) as $uid) {
 		  $user_assigned_tasks[$uid][] = $task_id;
 		}
-		$task->task_assigned_users = $task_users;
+		$task_assigned_users[$task_id] = $task_users;
 		$task_list[$task_id] = $task;
 	}
 	
@@ -363,13 +408,7 @@ if ($do_report) {
 					<td align="center">
 						<select class="text" name="percentage_assignment" title="<?php
 			echo $AppUI->_('Assign with Percentage'); ?>">
-<?php
-			for ($i = 0; $i <= 100; $i+=5) {
-				$selected = (($i==30)? ' selected="selected"' : '');
-				echo ("\t\t\t\t\t\t\t" . '<option value="' . $i . '"' . $selected . '>' 
-					  . $i . '%</option>' . "\n");
-			}
-?>
+<?php echo render_percentage_options(); ?>
 						</select>
 					</td>
 					<td align="center">
@@ -434,16 +473,10 @@ if ($do_report) {
 				<input onclick="javascript:checkAll('<?php 
 			echo($user_id); ?>');" type="checkbox" name="master" value="true"/>
 			</td>
-			<td colspan="6" style="background: #D0D0D0;color: #000000;font-weight: bold;" nowrap="nowrap">
-				<a href="index.php?m=calendar&amp;a=day_view&amp;user_id=<?php 
-			echo($user_id); ?>&amp;tab=1"><?php echo $AppUI->_('Orphaned Tasks'); ?></a>
-			</td>
-<?php 
-			$wx = (weekCells($display_week_hours,$sss,$sse));
-			for ($w=0; $w <=$wx; $w++) {
-				echo("\t\t\t" . '<td style="background: #D0D0D0;">&nbsp;</td>' . "\n");
-			}
-?>
+	<?php
+				echo render_ass_form_start($user_id, $AppUI->_('Orphaned Tasks'));
+				echo render_empty_week_cells($display_week_hours, $sss, $sse);
+	?>
 			<td bgcolor="#D0D0D0">
 				<table width="100%"><tr>
 					<td align="left">
@@ -456,13 +489,7 @@ if ($do_report) {
 					<td align="center">
 						<select class="text" name="percentage_assignment" title="<?php
 			echo $AppUI->_('Assign with Percentage'); ?>">
-<?php
-			for ($i = 0; $i <= 100; $i+=5) {
-				$selected = (($i==30)? ' selected="selected"' : '');
-				echo ("\t\t\t\t\t\t\t" . '<option value="' . $i . '"' . $selected . '>' 
-				      . $i . '%</option>' . "\n");
-			}
-?>
+<?php echo render_percentage_options(); ?>
 						</select>
 					</td>
 					<td align="center">
@@ -524,123 +551,80 @@ function isMemberOfTask($list, $user_id, $task) {
 	return false;
 }
 
-function displayTask($list,$task,$level,$display_week_hours,$fromPeriod,$toPeriod, $user_id) {
-	
+function displayTask($list, $task, $level, $display_week_hours, $fromPeriod, $toPeriod, $user_id)
+{
 	global $AppUI, $df, $durnTypes, $log_userfilter_users, $now, $priority, $system_users;
-	global $z, $zi, $x, $userAlloc;
-	
+	global $z, $zi, $userAlloc, $task_assigned_users;
+
 	$zi++;
-	$users = $task->task_assigned_users;
+	$users = isset($task_assigned_users[$task->task_id]) ? $task_assigned_users[$task->task_id] : $task->getAssignedUsers();
 	$task->userPriority = $task->getUserSpecificTaskPriority($user_id);
 	$projects = $task->getProject();
-	$tmp = '<tr>';
-	$tmp .= '<td align="center" nowrap="nowrap">';
-	$tmp .= ('<input type="checkbox" name="selected_task[' . $task->task_id . ']" value="' 
-	         . $task->task_id.'" />');
-	$tmp .= '</td>';
-	$tmp .= '<td align="center" nowrap="nowrap">';
-	if ($task->userPriority) {
-		$tmp .= '<img src="./images/icons/priority';
-		$tmp .= (($task->userPriority < 0) 
-		         ? ('-' . -$task->userPriority) 
-		         : ('+' . $task->userPriority));
-		$tmp .= '.gif" width="13" height="16" alt="" />';
-	}
-	$tmp .= '</td>';
-	
-	$tmp .= '<td nowrap="nowrap">';
-	for ($i=0; $i<$level; $i++) {
-		$tmp .= '&nbsp;&nbsp;&nbsp;';
-	}
-	if ($task->task_milestone == true) { 
-		$tmp .= '<strong>'; 
-	}
-	if ($level >= 1) {
-		$tmp .=  dPshowImage(dPfindImage('corner-dots.gif', 'tasks'), 16, 12, 'Subtask')."&nbsp;";
-	}
-	$tmp .=  '<a href="?m=tasks&amp;a=view&amp;task_id=' . $task->task_id . '">' . $task->task_name . '</a>';
-	if ($task->task_milestone == true) { 
-		$tmp .= '</strong>';
-	}
-	if ($task->task_priority) {
-		$tmp .= '&nbsp;(<img src="./images/icons/priority';
-		$tmp .= (($task->task_priority < 0) 
-		         ? ('-' . -$task->task_priority) 
-		         : ('+' . $task->task_priority));
-		$tmp .= '.gif" width="13" height="16" alt="" />)';
-	}
-	$tmp .= '</td>';
-	
-	$tmp .= '<td align="center">';
-	$tmp .=  ('<a href="?m=projects&amp;a=view&amp;project_id=' . $task->task_project 
-	        . '" style="background-color:' . @$projects['project_color_identifier'] . '; color:' 
-	        . bestColor(@$projects['project_color_identifier']) . '">' 
-	        . $projects['project_short_name'] . '</a>');
-	$tmp .= '</td>';
-	
-	$tmp .= '<td align="center" nowrap="nowrap">';
-	$tmp .= $task->task_duration.'&nbsp;' . $AppUI->_($durnTypes[$task->task_duration_type]);
-	$tmp .= '</td>';
-	
-	$tmp .= '<td align="center" nowrap="nowrap">';
-	$dt = new CDate($task->task_start_date);
-	$tmp .= $dt->format($df);
-	$tmp .= '&nbsp;&nbsp;&nbsp;</td>';
-	
-	$tmp .= '<td align="center" nowrap="nowrap">';
-	$ed = new CDate($task->task_end_date);
-	$dt = $now->dateDiff($ed);
-	$sgn = $now->compare($ed,$now);
-	$tmp .= ($dt*$sgn);
-	$tmp .= '</td>';
-	
-	if ($display_week_hours) {
-		$tmp .= displayWeeks($list, $task, $level, $fromPeriod, $toPeriod);
-	}
-	
-	$tmp .= '<td>';
-	$sep = $us = '';
-	foreach ($users as $row) {
-		if ($row['user_id']) {
-			$us .= ($sep . '<a href="?m=admin&amp;a=viewuser&amp;user_id=' . $row[0] . '">' 
-			        . $row['contact_first_name'] . ' ' . $row['contact_last_name'] . '&nbsp;(' 
-			        . $row['perc_assignment'] . '%)</a>');
-			$sep = ', ';
-		}
-		
-	}
-	$tmp .= $us;
-	$tmp .= '</td>';
-	// create the list of possible assignees
-	if ($zi == 1) {
-		//	selectbox may not have a size smaller than 2, use 5 here as minimum
-		$zz = (($z < 5) ? 5 : ($z  *1.5));
-		$zz = ((sizeof($users) >= 7) ? ($zz *2) : $zz);
-		$zm1 = $z - 2;
-		$zm1 = (($zm1 <= 0) ? 1 : $zm1);
-		
-		$assUser = $userAlloc[$user_id]['userFC'];
-		// need to handle orphaned tasks different from tasks with existing assignees
-		$zm1 += (($user_id == 0) ? 1 : 0);
-		
-		$tmp .= '<td valign="top" align="center" nowrap="nowrap" rowspan="' . $zm1 . '">';
-		$tmp .= ('<select name="add_users" style="width:200px" size="' . ($zz - 1) 
-		         . '" class="text" multiple="multiple" ondblclick="javascript:chAssignment(' 
-		         . $user_id . ', 0, false)">');
-		foreach ($userAlloc as $v => $u) {
-			$tmp .= ("\n\t" . '<option value="' . $u['user_id'] . '">' . dPformSafe($u['userFC']) 
-			         . '</option>');
-		}
-		$tmp .='</select>';
-		/*
-		$tmp .= arraySelect($user_list, 'add_users', 'class="text" style="width: 200px" size="' 
-		                    . ($zz - 1) . '" multiple="multiple"', NULL);
-		*/
-		$tmp .= '</td>';
-	}
-	$tmp .= "</tr>\n";
-	
-	return $tmp;
+
+	ob_start();
+	?>
+	<tr>
+		<td align="center" nowrap="nowrap">
+			<input type="checkbox" name="selected_task[<?php echo $task->task_id; ?>]" value="<?php echo $task->task_id; ?>" />
+		</td>
+		<td align="center" nowrap="nowrap">
+			<?php if ($task->userPriority) {
+				$img = ($task->userPriority < 0) ? ('-' . -$task->userPriority) : ('+' . $task->userPriority);
+			?>
+			<img src="./images/icons/priority<?php echo $img; ?>.gif" width="13" height="16" alt="" />
+			<?php } ?>
+		</td>
+		<td nowrap="nowrap">
+			<?php for ($i = 0; $i < $level; $i++) { echo '&nbsp;&nbsp;&nbsp;'; } ?>
+			<?php if ($task->task_milestone == true) { echo '<strong>'; } ?>
+			<?php if ($level >= 1) { echo dPshowImage(dPfindImage('corner-dots.gif', 'tasks'), 16, 12, 'Subtask') . "&nbsp;"; } ?>
+			<a href="?m=tasks&amp;a=view&amp;task_id=<?php echo $task->task_id; ?>"><?php echo dPformSafe($task->task_name); ?></a>
+			<?php if ($task->task_milestone == true) { echo '</strong>'; } ?>
+			<?php if ($task->task_priority) {
+				$imgp = ($task->task_priority < 0) ? ('-' . -$task->task_priority) : ('+' . $task->task_priority);
+			?>
+			&nbsp;(<img src="./images/icons/priority<?php echo $imgp; ?>.gif" width="13" height="16" alt="" />)
+			<?php } ?>
+		</td>
+		<td align="center">
+			<a href="?m=projects&amp;a=view&amp;project_id=<?php echo $task->task_project; ?>" style="background-color:<?php echo @$projects['project_color_identifier']; ?>; color:<?php echo bestColor(@$projects['project_color_identifier']); ?>"><?php echo dPformSafe($projects['project_short_name']); ?></a>
+		</td>
+		<td align="center" nowrap="nowrap">
+			<?php echo $task->task_duration . '&nbsp;' . $AppUI->_($durnTypes[$task->task_duration_type]); ?>
+		</td>
+		<td align="center" nowrap="nowrap">
+			<?php $dt = new CDate($task->task_start_date); echo $dt->format($df); ?>&nbsp;&nbsp;&nbsp;
+		</td>
+		<td align="center" nowrap="nowrap">
+			<?php $ed = new CDate($task->task_end_date); $diff = $now->dateDiff($ed); $sgn = $now->compare($ed, $now); echo ($diff * $sgn); ?>
+		</td>
+		<?php if ($display_week_hours) { echo displayWeeks($list, $task, $level, $fromPeriod, $toPeriod); } ?>
+		<td>
+			<?php $sep = ''; foreach ($users as $row) {
+				if ($row['user_id']) {
+					echo $sep . '<a href="?m=admin&a=viewuser&user_id=' . $row[0] . '">' . dPformSafe($row['contact_first_name']) . ' ' . dPformSafe($row['contact_last_name']) . '&nbsp;(' . $row['perc_assignment'] . '%)</a>';
+					$sep = ', ';
+				}
+			} ?>
+		</td>
+		<?php
+		if ($zi == 1) {
+			$zz = (($z < 5) ? 5 : ($z * 1.5));
+			$zz = ((sizeof($users) >= 7) ? ($zz * 2) : $zz);
+			$zm1 = $z - 2;
+			$zm1 = (($zm1 <= 0) ? 1 : $zm1);
+			$assUser = $userAlloc[$user_id]['userFC'];
+			$zm1 += (($user_id == 0) ? 1 : 0);
+		?>
+		<td valign="top" align="center" nowrap="nowrap" rowspan="<?php echo $zm1; ?>">
+			<select name="add_users" style="width:200px" size="<?php echo ($zz - 1); ?>" class="text" multiple="multiple" ondblclick="javascript:chAssignment(<?php echo $user_id; ?>, 0, false)">
+				<?php foreach ($userAlloc as $v => $u) { echo '<option value="' . $u['user_id'] . '">' . dPformSafe($u['userFC']) . '</option>'; } ?>
+			</select>
+		</td>
+		<?php } ?>
+	</tr>
+	<?php
+	return ob_get_clean();
 }
 
 
@@ -763,7 +747,9 @@ function displayWeeks($list, $task, $level, $fromPeriod, $toPeriod) {
 }
 
 function getOrphanedTasks($tval) {
-	return (sizeof($tval->task_assigned_users) > 0) ? NULL : $tval;
+	global $task_assigned_users;
+	$assigned = isset($task_assigned_users[$tval->task_id]) ? $task_assigned_users[$tval->task_id] : $tval->getAssignedUsers();
+	return (sizeof($assigned) > 0) ? NULL : $tval;
 }
 
 ?>

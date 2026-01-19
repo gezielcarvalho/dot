@@ -26,6 +26,9 @@ $titleBlock->addCell(
 	arraySelect($compFilter, 'company_id', 'size="1" class="text" onchange="javascript:document.companyFilter.submit();"', $company_id, false), '',
 	'<form action="?m=tasks&a=tasksperuser" method="post" name="companyFilter">', '</form>'
 );
+// Determine user context (default to current user)
+$user_id = (int)dPgetParam($_REQUEST, 'user_id', $AppUI->user_id);
+
 $titleBlock->addCrumb("?m=tasks", "tasks list");
 $titleBlock->addCrumb("?m=tasks&a=todo&user_id=$user_id", "my todo");
 $titleBlock->show();
