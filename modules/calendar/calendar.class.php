@@ -278,7 +278,16 @@ class CMonthCalendar {
 		global $AppUI, $locale_char_set;
 		
 		$AppUI->setBaseLocale(LC_ALL);
-		$wk = Date_Calc::getCalendarWeek(null, null, null, '%a', LOCALE_FIRST_DAY);
+		// use locale first day for display of day names
+		// Build weekday headers directly from LOCALE_FIRST_DAY to avoid
+		// depending on Date_Calc global behaviour
+		$baseWeek = array('Sun','Mon','Tue','Wed','Thu','Fri','Sat');
+		$first = defined('LOCALE_FIRST_DAY') ? LOCALE_FIRST_DAY : 0;
+		$wk = array();
+		for ($i = 0; $i < 7; $i++) {
+			$wk[] = $baseWeek[($i + $first) % 7];
+		}
+		@file_put_contents(DP_BASE_DIR . '/tmp/date_debug.log', json_encode(array('ts'=>date('c'), 'file'=>'calendar.class.php::_drawDays::wk', 'LOCALE_FIRST_DAY'=>defined('LOCALE_FIRST_DAY')?LOCALE_FIRST_DAY:null, 'wk'=>$wk)) . PHP_EOL, FILE_APPEND);
 		setlocale(LC_ALL, $AppUI->user_lang);
 		
 		$s = (($this->showWeek) ? ("\n\t\t" . '<th>&nbsp;</th>') : '');
@@ -305,6 +314,7 @@ class CMonthCalendar {
 		$this_month = intval($date->getMonth());
 		$this_year = intval($date->getYear());
 		$AppUI->setBaseLocale(LC_ALL);
+		// use locale first day for calendar grid
 		$cal = Date_Calc::getCalendarMonth($this_month, $this_year, '%Y:%m:%d:%w', LOCALE_FIRST_DAY);
 		setlocale(LC_ALL, $AppUI->user_lang);
 		

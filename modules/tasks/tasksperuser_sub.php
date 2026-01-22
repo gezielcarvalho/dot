@@ -81,6 +81,33 @@ function render_percentage_options($selected = 30)
 	}
 	return $out;
 }
+
+// Normalize a date to the Monday (start) of its week at 00:00:00
+function week_start_monday($date)
+{
+	$d = new CDate($date);
+	$dow = $d->getDayOfWeek(); // expected 0=Sun,1=Mon,...6=Sat
+	$offset = ($dow + 6) % 7; // days since Monday
+	for ($i = 0; $i < $offset; $i++) {
+		$prev = $d->getPrevDay();
+		$d = new CDate($prev->format('%Y-%m-%d 00:00:00'));
+	}
+	return $d;
+}
+
+// Normalize a date to the Sunday (end) of its week at 23:59:59
+function week_end_sunday($date)
+{
+	$d = new CDate($date);
+	$dow = $d->getDayOfWeek(); // expected 0=Sun,1=Mon,...6=Sat
+	$offset = ($dow + 6) % 7; // days since Monday
+	$days_to_sunday = 6 - $offset;
+	for ($i = 0; $i < $days_to_sunday; $i++) {
+		$next = $d->getNextDay();
+		$d = new CDate($next->format('%Y-%m-%d 23:59:59'));
+	}
+	return $d;
+}
 ?>
 
 <script language="javascript">
@@ -376,7 +403,7 @@ if ($do_report) {
 			</td>
 			<td colspan="6" style="background: #D0D0D0;color: #000000;font-weight: bold;" nowrap="nowrap">
 				<a href="index.php?m=calendar&amp;a=day_view&amp;user_id=<?php 
-			echo($user_id); ?>&tab=1"><?php echo($userAlloc[$user_id]['userFC']); ?></a>
+			echo($user_id); ?>&tab=1"><?php echo (isset($userAlloc[$user_id]['userFC']) ? dPformSafe($userAlloc[$user_id]['userFC']) : ''); ?></a>
 			</td>
 <?php 
 			$wx = (weekCells($display_week_hours, $sss, $sse));
@@ -601,8 +628,10 @@ function displayTask($list, $task, $level, $display_week_hours, $fromPeriod, $to
 		<?php if ($display_week_hours) { echo displayWeeks($list, $task, $level, $fromPeriod, $toPeriod); } ?>
 		<td>
 			<?php $sep = ''; foreach ($users as $row) {
-				if ($row['user_id']) {
-					echo $sep . '<a href="?m=admin&a=viewuser&user_id=' . $row[0] . '">' . dPformSafe($row['contact_first_name']) . ' ' . dPformSafe($row['contact_last_name']) . '&nbsp;(' . $row['perc_assignment'] . '%)</a>';
+				if (!empty($row['user_id'])) {
+					$uid = isset($row['user_id']) ? $row['user_id'] : '';
+					$perc = isset($row['perc_assignment']) ? $row['perc_assignment'] : 0;
+					echo $sep . '<a href="?m=admin&a=viewuser&user_id=' . $uid . '">' . dPformSafe($row['contact_first_name']) . ' ' . dPformSafe($row['contact_last_name']) . '&nbsp;(' . $perc . '%)</a>';
 					$sep = ', ';
 				}
 			} ?>
@@ -613,7 +642,7 @@ function displayTask($list, $task, $level, $display_week_hours, $fromPeriod, $to
 			$zz = ((sizeof($users) >= 7) ? ($zz * 2) : $zz);
 			$zm1 = $z - 2;
 			$zm1 = (($zm1 <= 0) ? 1 : $zm1);
-			$assUser = $userAlloc[$user_id]['userFC'];
+			$assUser = (isset($userAlloc[$user_id]) && isset($userAlloc[$user_id]['userFC'])) ? $userAlloc[$user_id]['userFC'] : '';
 			$zm1 += (($user_id == 0) ? 1 : 0);
 		?>
 		<td valign="top" align="center" nowrap="nowrap" rowspan="<?php echo $zm1; ?>">
@@ -632,21 +661,9 @@ function weekDates($fromPeriod, $toPeriod) {
 	global $df;
 	$row = '';
 	
-	//start of week
-	$sd = new CDate($fromPeriod);
-	$days_from_start = $sd->getDayOfWeek();
-	for ($i=0; $i < $days_from_start; $i++) {
-		$stmp = $sd->getPrevDay();
-		$sd =  new CDate($stmp->format('%Y-%m-%d 00:00:00'));
-	}
-	
-	//end of week
-	$ed = new CDate($toPeriod);
-	$days_spent = $ed->getDayOfWeek();
-	for ($i = (6 - $days_spent); $i > 0; $i--) {
-		$etmp = $ed->getNextDay();
-		$ed =  new CDate($etmp->format('%Y-%m-%d 23:59:59'));
-	}
+	// normalize range to week boundaries (Monday..Sunday)
+	$sd = week_start_monday($fromPeriod);
+	$ed = week_end_sunday($toPeriod);
 	
 	$row = "";
 	while ($sd->before($ed)) {
@@ -663,21 +680,9 @@ function weekCells($display_week_hours, $fromPeriod, $toPeriod) {
 		return 0;
 	}
 	
-	//start of week
-	$sd = new CDate($fromPeriod);
-	$days_from_start = $sd->getDayOfWeek();
-	for ($i=0; $i < $days_from_start; $i++) {
-		$stmp = $sd->getPrevDay();
-		$sd =  new CDate($stmp->format('%Y-%m-%d 00:00:00'));
-	}
-	
-	//end of week
-	$ed = new CDate($toPeriod);
-	$days_spent = $ed->getDayOfWeek();
-	for ($i = (6 - $days_spent); $i > 0; $i--) {
-		$etmp = $ed->getNextDay();
-		$ed =  new CDate($etmp->format('%Y-%m-%d 23:59:59'));
-	}
+	// normalize range to week boundaries (Monday..Sunday)
+	$sd = week_start_monday($fromPeriod);
+	$ed = week_end_sunday($toPeriod);
 	
 	$weeks = 0;
 	while ($sd->before($ed)) {
@@ -694,21 +699,9 @@ function weekCells($display_week_hours, $fromPeriod, $toPeriod) {
 // This function is called within 'displayTask()'
 function displayWeeks($list, $task, $level, $fromPeriod, $toPeriod) {
 	
-	//start of week
-	$sd = new CDate($fromPeriod);
-	$days_from_start = $sd->getDayOfWeek();
-	for ($i=0; $i < $days_from_start; $i++) {
-		$stmp = $sd->getPrevDay();
-		$sd =  new CDate($stmp->format('%Y-%m-%d 00:00:00'));
-	}
-	
-	//end of week
-	$ed = new CDate($toPeriod);
-	$days_spent = $ed->getDayOfWeek();
-	for ($i = (6 - $days_spent); $i > 0; $i--) {
-		$etmp = $ed->getNextDay();
-		$ed =  new CDate($etmp->format('%Y-%m-%d 23:59:59'));
-	}
+	// normalize range to week boundaries (Monday..Sunday)
+	$sd = week_start_monday($fromPeriod);
+	$ed = week_end_sunday($toPeriod);
 	
 	$st = new CDate($task->task_start_date);
 	$et = new CDate($task->task_end_date);

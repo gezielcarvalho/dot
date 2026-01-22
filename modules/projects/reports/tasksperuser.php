@@ -3,6 +3,8 @@ if (!defined('DP_BASE_DIR')) {
   die('You should not access this file directly.');
 }
 
+require_once DP_BASE_DIR . '/includes/date_helpers.php';
+
 $do_report = dPgetParam($_POST, 'do_report', 0);
 $log_start_date = dPgetCleanParam($_POST, 'log_start_date', 0);
 $log_end_date = dPgetCleanParam($_POST, 'log_end_date', 0);
@@ -179,6 +181,7 @@ if ($do_report) {
 		}
 ?>
 		</tr>
+		
 <?php 
 		
 		foreach ($user_list as $user_id => $user_data) {
@@ -308,23 +311,11 @@ function displayTask($list, $task, $level, $display_week_hours, $fromPeriod, $to
 function weekDates($fromPeriod, $toPeriod) {
 	global $df;
 	$row = '';
-	
-	//start of week
-	$sd = new CDate($fromPeriod);
-	$days_from_start = $sd->getDayOfWeek();
-	for ($i=0; $i < $days_from_start; $i++) {
-		$stmp = $sd->getPrevDay();
-		$sd =  new CDate($stmp->format('%Y-%m-%d 00:00:00'));
-	}
-	
-	//end of week
-	$ed = new CDate($toPeriod);
-	$days_spent = $ed->getDayOfWeek();
-	for ($i = (6 - $days_spent); $i > 0; $i--) {
-		$etmp = $ed->getNextDay();
-		$ed =  new CDate($etmp->format('%Y-%m-%d 23:59:59'));
-	}
-	
+
+	// normalize range to week boundaries (Monday..Sunday)
+	$sd = week_start_monday($fromPeriod);
+	$ed = week_end_sunday($toPeriod);
+
 	$row = "";
 	while ($sd->before($ed)) {
 		$row.= ("\t\t\t" 
@@ -336,28 +327,16 @@ function weekDates($fromPeriod, $toPeriod) {
 }
 
 function weekCells($fromPeriod, $toPeriod) {
-	//start of week
-	$sd = new CDate($fromPeriod);
-	$days_from_start = $sd->getDayOfWeek();
-	for ($i=0; $i < $days_from_start; $i++) {
-		$stmp = $sd->getPrevDay();
-		$sd =  new CDate($stmp->format('%Y-%m-%d 00:00:00'));
-	}
-	
-	//end of week
-	$ed = new CDate($toPeriod);
-	$days_spent = $ed->getDayOfWeek();
-	for ($i = (6 - $days_spent); $i > 0; $i--) {
-		$etmp = $ed->getNextDay();
-		$ed =  new CDate($etmp->format('%Y-%m-%d 23:59:59'));
-	}
-	
+	// normalize range to week boundaries (Monday..Sunday)
+	$sd = week_start_monday($fromPeriod);
+	$ed = week_end_sunday($toPeriod);
+
 	$weeks = 0;
 	while ($sd->before($ed)) {
 		$weeks++;
 		$sd->addSeconds(7 * 24 * 3600); //add one week
 	}
-	
+
 	return $weeks;
 }
 
@@ -365,23 +344,11 @@ function weekCells($fromPeriod, $toPeriod) {
 // to this task and when. Report this in weeks
 // This function is called within 'displayTask()'
 function displayWeeks($list, $task, $level, $fromPeriod, $toPeriod) {
-	
-	//start of week
-	$sd = new CDate($fromPeriod);
-	$days_from_start = $sd->getDayOfWeek();
-	for ($i=0; $i < $days_from_start; $i++) {
-		$stmp = $sd->getPrevDay();
-		$sd =  new CDate($stmp->format('%Y-%m-%d 00:00:00'));
-	}
-	
-	//end of week
-	$ed = new CDate($toPeriod);
-	$days_spent = $ed->getDayOfWeek();
-	for ($i = (6 - $days_spent); $i > 0; $i--) {
-		$etmp = $ed->getNextDay();
-		$ed =  new CDate($etmp->format('%Y-%m-%d 23:59:59'));
-	}
-	
+    
+	// normalize range to week boundaries (Monday..Sunday)
+	$sd = week_start_monday($fromPeriod);
+	$ed = week_end_sunday($toPeriod);
+
 	$st = new CDate($task->task_start_date);
 	$et = new CDate($task->task_end_date);
 	

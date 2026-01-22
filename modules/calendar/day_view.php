@@ -49,7 +49,7 @@ if (!$dd) {
 $mm = $this_day->getMonth();
 $yy = $this_day->getYear();
 
-// get current week
+// get current week (use locale first day)
 $this_week = Date_Calc::beginOfWeek ($dd, $mm, $yy, FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY);
 
 // prepare time period for 'events'

@@ -210,9 +210,9 @@ function userUsageWeeks() {
 	$task_duration_per_week = $task->getTaskDurationPerWeek($use_assigned_percentage);
 	$AppUI->setBaseLocale();
 	$ted = new CDate(Date_Calc::endOfWeek($task_end_date->day,$task_end_date->month,$task_end_date->year));
-	$tsd = new CDate(Date_Calc::beginOfWeek($task_start_date->day,$task_start_date->month,$task_start_date->year));
+	$tsd = new CDate(Date_Calc::beginOfWeek($task_start_date->day,$task_start_date->month,$task_start_date->year, FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY));
 	$ed = new CDate(Date_Calc::endOfWeek($end_date->day,$end_date->month,$end_date->year));
-	$sd = new CDate(Date_Calc::beginOfWeek($start_date->day,$start_date->month,$start_date->year));
+	$sd = new CDate(Date_Calc::beginOfWeek($start_date->day,$start_date->month,$start_date->year, FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY));
 	setlocale(LC_ALL, $AppUI->user_lang);
 	
 	$week_difference = $end_date->workingDaysInSpan($start_date)/count(explode(",",dPgetConfig("cal_working_days")));
@@ -268,7 +268,7 @@ function showWeeks() {
 	
 	$AppUI->setBaseLocale();
 	$ed = new CDate(Date_Calc::endOfWeek($end_date->day,$end_date->month,$end_date->year));
-	$sd = new CDate(Date_Calc::beginOfWeek($start_date->day,$start_date->month,$start_date->year));
+	$sd = new CDate(Date_Calc::beginOfWeek($start_date->day,$start_date->month,$start_date->year, FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY));
 	setlocale(LC_ALL, $AppUI->user_lang);
 	
 	$week_difference = ceil($ed->workingDaysInSpan($sd)/count(explode(',',dPgetConfig('cal_working_days'))));
