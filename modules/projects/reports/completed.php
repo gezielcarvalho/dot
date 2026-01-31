@@ -81,7 +81,7 @@ $q->leftJoin('users', 'b', 'a.task_owner = b.user_id');
 $q->addWhere('task_percent_complete = 100');
 if ($project_id != 0)
 	$q->addWhere('task_project = ' . $project_id);
-$q->addWhere("task_end_date between '" . $last_week->format(FMT_DATETIME_MYSQL) . "' and '" . $date->format(FMT_DATETIME_MYSQL) . "'");
+$q->addWhere("task_end_date IS NOT NULL AND task_end_date != '0000-00-00 00:00:00' AND task_end_date between '" . $last_week->format(FMT_DATETIME_MYSQL) . "' and '" . $date->format(FMT_DATETIME_MYSQL) . "'");
 $tasks = $q->loadHashList('task_id');
 
 if ($err = db_error()) {

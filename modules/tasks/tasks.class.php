@@ -1294,7 +1294,7 @@ class CTask extends CDpObject
 		$q->addWhere('task_status > -1' 
 		             . " AND ((task_start_date <= '{$db_end}'" 
 		             . " AND (task_end_date >= '{$db_start}'" 
-		             . " OR  task_end_date = '0000-00-00 00:00:00' OR task_end_date = NULL)" 
+		             . " OR  task_end_date = '0000-00-00 00:00:00' OR task_end_date IS NULL)" 
 		             . " OR task_start_date BETWEEN '$db_start' AND '$db_end'))");
 		if ($user_id) {
 			$q->addWhere("ut.user_id = '$user_id'");

@@ -23,7 +23,8 @@ if (getPermission('admin', 'view')) {
 }
 
 // assemble the links for the events
-$events = CEvent::getEventsForPeriod($first_time, $last_time, $event_filter, $user_id);
+$eventObj = new CEvent();
+$events = $eventObj->getEventsForPeriod($first_time, $last_time, $event_filter, $user_id);
 
 $start_hour = dPgetConfig('cal_day_start');
 $end_hour   = dPgetConfig('cal_day_end');

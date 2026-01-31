@@ -169,8 +169,7 @@ $q2->setLimit($xpg_pagesize, $xpg_min);
 // performance issues. It is far better to rearrange the group
 // by to get the correct ordering.
 $q2->addGroup('p.project_id');
-$q2->addGroup('f.file_version_id DESC');
-
+	$q2->addGroup('f.file_version_id');
 
 $q3 = new DBQuery;
 $q3->addQuery('f.file_id, f.file_version, f.file_version_id, f.file_project, f.file_name' 

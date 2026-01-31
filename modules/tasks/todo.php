@@ -134,7 +134,9 @@ if ($showPinned) {
 	$q->addWhere('task_pinned = 1');
 }
 if (!$showEmptyDate) {
-	$q->addWhere("ta.task_start_date != '' AND ta.task_start_date != '0000-00-00 00:00:00'");
+	// Avoid comparing DATETIME to an empty string which can cause SQL errors in
+	// strict SQL modes. Use IS NOT NULL and check for the zeroed DATETIME instead.
+	$q->addWhere("ta.task_start_date IS NOT NULL AND ta.task_start_date != '0000-00-00 00:00:00'");
 }
 
 

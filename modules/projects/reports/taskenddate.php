@@ -67,9 +67,9 @@ if ($do_report) {
         $user_filter  = " and ut.user_id = $user_id
                          and ut.task_id = t.task_id ";
     }
-	$q->addWhere("task_end_date >= '".$start_date->format(FMT_DATETIME_MYSQL)
-				."' and task_end_date <= '".$end_date->format(FMT_DATETIME_MYSQL)
-				."' and p.project_id = t.task_project"
+	$q->addWhere("(task_end_date IS NOT NULL AND task_end_date != '0000-00-00 00:00:00' AND task_end_date >= '".$start_date->format(FMT_DATETIME_MYSQL)
+					."' and task_end_date <= '".$end_date->format(FMT_DATETIME_MYSQL)
+					."') and p.project_id = t.task_project"
 				." and t.task_dynamic = '0'"
 				.' and t.task_owner = u.user_id'
 				. $projects_filter

@@ -27,22 +27,36 @@ $dd = $this_week->getDay();
 $mm = $this_week->getMonth();
 $yy = $this_week->getYear();
 
-// prepare time period for 'events'
-$first_time = new CDate(Date_calc::beginOfWeek($dd, $mm, $yy, 
-                                               FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY));
-$week_time = new CDate($first_time); // Can't use first_time after we adjust it.
+// Debug: record locale/weekday constants and computed inputs
+@file_put_contents(DP_BASE_DIR . '/tmp/date_debug.log', json_encode(array('ts'=>date('c'), 'file'=>'week_view.php::init', 'LOCALE_FIRST_DAY'=>defined('LOCALE_FIRST_DAY')?LOCALE_FIRST_DAY:null, 'DATE_CALC_BEGIN_WEEKDAY'=>defined('DATE_CALC_BEGIN_WEEKDAY')?DATE_CALC_BEGIN_WEEKDAY:null, 'dd'=>$dd,'mm'=>$mm,'yy'=>$yy)) . PHP_EOL, FILE_APPEND);
+
+// prepare time period for 'events' using LOCALE_FIRST_DAY
+// compute offset from desired first day and build week range
+$firstDayOfWeek = defined('LOCALE_FIRST_DAY') ? LOCALE_FIRST_DAY : 0; // 0=Sun,1=Mon
+$currentWeekday = $this_week->getDayOfWeek(); // 0=Sun..6=Sat
+$offset = ($currentWeekday - $firstDayOfWeek + 7) % 7;
+$week_time = new CDate($this_week);
+$first_time = new CDate($this_week);
+$first_time->addDays(-$offset);
 $first_time->setTime(0, 0, 0);
-$first_time->subtractSeconds(1);
 
-$last_time = new CDate(Date_calc::endOfWeek($dd, $mm, $yy, FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY));
+// Debug: record computed week start and week_time
+@file_put_contents(DP_BASE_DIR . '/tmp/date_debug.log', json_encode(array('ts'=>date('c'), 'file'=>'week_view.php::week_times', 'first_time'=>$first_time->format(FMT_TIMESTAMP_DATE), 'week_time'=>$week_time->format(FMT_TIMESTAMP_DATE), 'LOCALE_FIRST_DAY'=>$firstDayOfWeek)) . PHP_EOL, FILE_APPEND);
+
+$last_time = new CDate($first_time);
+$last_time->addDays(6);
 $last_time->setTime(23, 59, 59);
-$prev_week = new CDate(Date_calc::beginOfPrevWeek($dd, $mm, $yy, 
-                                                  FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY));
-$next_week = new CDate(Date_calc::beginOfNextWeek($dd, $mm, $yy, 
-                                                  FMT_TIMESTAMP_DATE, LOCALE_FIRST_DAY));
 
-$tasks = CTask::getTasksForPeriod($first_time, $last_time, $company_id);
-$events = CEvent::getEventsForPeriod($first_time, $last_time);
+// prev/next week references
+$prev_week = new CDate($week_time);
+$prev_week->addDays(-7);
+$next_week = new CDate($week_time);
+$next_week->addDays(7);
+
+$taskObj = new CTask();
+$tasks = $taskObj->getTasksForPeriod($first_time, $last_time, $company_id);
+$eventObj = new CEvent();
+$events = $eventObj->getEventsForPeriod($first_time, $last_time);
 
 $links = array();
 
@@ -114,10 +128,11 @@ echo ('?m=calendar&amp;a=week_view&amp;date=' . $next_week->format(FMT_TIMESTAMP
 </tr>
 </table>
 
-<table border="0" cellspacing="1" cellpadding="2" width="100%" style="margin-width:4px;background-color:white">
+<table border="0" cellspacing="1" cellpadding="2" width="100%" style="margin:4px;background-color:white">
 <?php
 $column = 0;
-$show_day = $this_week;
+// ensure we start display on the beginning of the week (Monday)
+$show_day = (is_object($week_time) ? new CDate($week_time) : new CDate($this_week));
 
 $today = new CDate();
 $today = $today->format(FMT_TIMESTAMP_DATE);

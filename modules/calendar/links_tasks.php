@@ -16,7 +16,8 @@ if (!defined('DP_BASE_DIR')) {
 */
 function getTaskLinks($startPeriod, $endPeriod, &$links, $strMaxLen, $company_id=0) {
 	GLOBAL $a, $AppUI, $dPconfig;
-	$tasks = CTask::getTasksForPeriod($startPeriod, $endPeriod, $company_id, $AppUI->user_id, true);
+	$taskObj = new CTask();
+	$tasks = $taskObj->getTasksForPeriod($startPeriod, $endPeriod, $company_id, $AppUI->user_id, true);
 
 	$durnTypes = dPgetSysVal('TaskDurationType');
 
@@ -82,10 +83,10 @@ function getTaskLinks($startPeriod, $endPeriod, &$links, $strMaxLen, $company_id
 		$target = $start;
 		$target->addSeconds($durn*$sid);
 		
-		if (Date::compare($target, $startPeriod) < 0) {
+		if ($target->before($startPeriod)) {
 			continue;
 		}
-		if (Date::compare($start, $startPeriod) > 0) {
+		if ($start->after($startPeriod)) {
 			$temp = $start;
 			$temp->addSeconds($sid);
 		} else {
@@ -93,9 +94,9 @@ function getTaskLinks($startPeriod, $endPeriod, &$links, $strMaxLen, $company_id
 		}
 		
 		// Optimised for speed, AJD.
-		while (Date::compare($endPeriod, $temp) > 0 
-		       && Date::compare($target, $temp) > 0
-		       && ($end == null || $temp->before($end))) {
+		while ($endPeriod->after($temp) 
+			   && $target->after($temp)
+			   && ($end == null || $temp->before($end))) {
 			$links[$temp->format(FMT_TIMESTAMP_DATE)][] = $link;
 			$temp->addSeconds($sid);
 		}

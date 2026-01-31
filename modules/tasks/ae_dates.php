@@ -90,10 +90,18 @@ $cwd_hr = implode(', ', $cwd_conv);
 function cal_work_day_conv($val) {
 	global $locale_char_set, $AppUI;
 	$AppUI->setBaseLocale();
-	$wk = Date_Calc::getCalendarWeek(null, null, null, "%a", LOCALE_FIRST_DAY);
+	// Build weekday names based on LOCALE_FIRST_DAY (0=Sun,1=Mon)
+	$baseWeek = array('Sun','Mon','Tue','Wed','Thu','Fri','Sat');
+	$first = defined('LOCALE_FIRST_DAY') ? LOCALE_FIRST_DAY : 0;
+	$wk = array();
+	for ($i = 0; $i < 7; $i++) {
+		$wk[] = $baseWeek[($i + $first) % 7];
+	}
 	setlocale(LC_ALL, $AppUI->user_lang);
-	
-	$day_name = $wk[($val - LOCALE_FIRST_DAY)%7];
+
+	$index = ($val - $first) % 7;
+	if ($index < 0) $index += 7;
+	$day_name = $wk[$index];
 	if ($locale_char_set == "utf-8" && function_exists("utf8_encode")) {
 	    $day_name = utf8_encode($day_name);
 	}

@@ -14,7 +14,8 @@ if (!defined('DP_BASE_DIR')) {
 */
 function getEventLinks($startPeriod, $endPeriod, &$links, $strMaxLen) {
   global $AppUI, $event_filter;
-	$events = CEvent::getEventsForPeriod($startPeriod, $endPeriod, $event_filter);
+	$eventObj = new CEvent();
+	$events = $eventObj->getEventsForPeriod($startPeriod, $endPeriod, $event_filter);
 
 	// assemble the links for the events
 	foreach ($events as $row) {
